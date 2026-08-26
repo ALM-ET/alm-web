@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+
+/*
+ * Theme tokens.
+ *
+ * Every colour is a CSS custom property rather than a hard-coded Tailwind
+ * class, because M4 rewrites these at runtime from the tenant's extracted logo
+ * palette. Components must only ever reference the semantic names below — a
+ * literal `bg-indigo-600` anywhere in the app is a white-labelling bug.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f6f8fb;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f7;
+  --secondary-foreground: #0f172a;
+  --muted: #eef2f7;
+  --muted-foreground: #64748b;
+  --accent: #f97316;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #4f46e5;
+
+  /* The sidebar keeps its own scale: it stays dark in both themes, matching
+     the recorded design, so it cannot inherit --background. */
+  --sidebar: #0f2744;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-accent: #1e3a5f;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-active: #4f46e5;
+  --sidebar-brand: #f97316;
+
+  --radius: 0.75rem;
+  --font-heading: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.dark {
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+  --card: #111a2b;
+  --card-foreground: #e2e8f0;
+  --popover: #111a2b;
+  --popover-foreground: #e2e8f0;
+  --secondary: #1b2537;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1b2537;
+  --muted-foreground: #94a3b8;
+  --border: #1f2a3c;
+  --input: #1f2a3c;
+  --sidebar: #080f1c;
+  --sidebar-accent: #16233a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-brand: var(--sidebar-brand);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.375rem);
+
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+  }
+  /* Logical properties throughout, so enabling an RTL locale in M5 mirrors the
+     layout without touching a single component. */
+  [dir='rtl'] .rtl-flip {
+    transform: scaleX(-1);
+  }
+}
