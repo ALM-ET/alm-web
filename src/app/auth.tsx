@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type Bootstrap, type Permission } from '@alm/sdk';
 import { api } from '@/lib/api';
 import { useTheme } from './theme';
@@ -20,6 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthContextValue['status']>('loading');
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const { applyBranding } = useTheme();
+  const queryClient = useQueryClient();
 
   const load = useCallback(async () => {
     try {
@@ -46,17 +48,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string, totp?: string) => {
       const result = await api.auth.login(email, password, totp);
       api.setAccessToken(result.accessToken);
+      // Drop anything cached for whoever was signed in before. Without this a
+      // shared workstation shows the previous person's staff list and audit
+      // trail to the next one, from memory, with no request made.
+      queryClient.clear();
       await load();
     },
-    [load],
+    [load, queryClient],
   );
 
   const logout = useCallback(async () => {
     await api.auth.logout().catch(() => undefined);
     api.setAccessToken(null);
+    queryClient.clear();
     setBootstrap(null);
     setStatus('anonymous');
-  }, []);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(() => {
     const permissions = new Set<string>(bootstrap?.permissions ?? []);

@@ -15,6 +15,9 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "noEmit": true,
+    // Keep the incremental build cache out of the watched project root: Vite
+    // treats a write there as a source change and reloads the page in a loop.
+    "tsBuildInfoFile": "node_modules/.cache/tsconfig.tsbuildinfo",
     "types": ["vite/client", "node"],
     "baseUrl": ".",
     "paths": { "@/*": ["./src/*"] }
