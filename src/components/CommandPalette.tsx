@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/command';
 import { NAVIGATION, type NavItem } from '@/app/navigation';
 import { useAuth } from '@/app/auth';
+import { useT } from '@/app/i18n';
 import { useTheme } from '@/app/theme';
 
 /** Flatten the nav tree into leaf destinations the palette can jump to. */
@@ -24,6 +25,7 @@ function flatten(items: NavItem[], parent?: string): { label: string; group: str
 }
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const t = useT();
   const navigate = useNavigate();
   const { can, hasModule, logout } = useAuth();
   const { isDark, toggle } = useTheme();
@@ -60,9 +62,13 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Search or type a command…" value={search} onValueChange={setSearch} />
+      <CommandInput
+        placeholder={t('shell.search_placeholder', 'Search or type a command…')}
+        value={search}
+        onValueChange={setSearch}
+      />
       <CommandList>
-        <CommandEmpty>Nothing matches “{search}”.</CommandEmpty>
+        <CommandEmpty>{t('shell.no_matches', 'Nothing matches “{query}”.', { query: search })}</CommandEmpty>
 
         {grouped.map(([group, entries]) => (
           <CommandGroup key={group} heading={group}>
@@ -82,13 +88,15 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           </CommandGroup>
         ))}
 
-        <CommandGroup heading="Actions">
+        <CommandGroup heading={t('shell.actions', 'Actions')}>
           <CommandItem value="toggle theme dark light" onSelect={() => run(toggle)}>
             {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            Switch to {isDark ? 'light' : 'dark'} mode
+            {isDark
+              ? t('shell.switch_light', 'Switch to light mode')
+              : t('shell.switch_dark', 'Switch to dark mode')}
           </CommandItem>
           <CommandItem value="log out sign out" onSelect={() => run(() => void logout())}>
-            Log out
+            {t('shell.log_out', 'Log out')}
             <CommandShortcut>⇧⌘Q</CommandShortcut>
           </CommandItem>
         </CommandGroup>

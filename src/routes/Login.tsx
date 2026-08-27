@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/app/auth';
+import { useT } from '@/app/i18n';
 
 export function Login() {
+  const t = useT();
   const { status, login, bootstrap } = useAuth();
   const [params] = useSearchParams();
   const [email, setEmail] = useState('');
@@ -33,7 +35,9 @@ export function Login() {
         setError(caught.message);
         setFieldErrors(caught.fields);
       } else {
-        setError('Could not reach the server. Check your connection and try again.');
+        setError(
+          t('errors.unreachable', 'Could not reach the server. Check your connection and try again.'),
+        );
       }
     } finally {
       setPending(false);
@@ -44,14 +48,18 @@ export function Login() {
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">{bootstrap?.branding.appName ?? 'Sign in'}</CardTitle>
-          <CardDescription>Sign in to your agency workspace.</CardDescription>
+          <CardTitle className="text-2xl">
+            {bootstrap?.branding.appName ?? t('auth.sign_in', 'Sign in')}
+          </CardTitle>
+          <CardDescription>
+            {t('auth.sign_in_subtitle', 'Sign in to your agency workspace.')}
+          </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={submit} className="space-y-4" noValidate>
             <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
+              <Label htmlFor="email">{t('auth.email', 'Email address')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -70,7 +78,7 @@ export function Login() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.password', 'Password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -91,7 +99,7 @@ export function Login() {
 
             <Button type="submit" className="w-full" disabled={pending}>
               {pending && <Loader2 className="size-4 animate-spin" />}
-              Sign in
+              {t('auth.sign_in', 'Sign in')}
             </Button>
           </form>
         </CardContent>

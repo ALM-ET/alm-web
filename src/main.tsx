@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from './app/theme';
 import { AuthProvider } from './app/auth';
+import { I18nProvider } from './app/i18n';
 import { AppRouter } from './app/router';
 import './index.css';
 
@@ -25,12 +26,14 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <BrowserRouter>
-            <AppRouter />
-          </BrowserRouter>
-          <Toaster richColors closeButton position="top-right" />
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              <AppRouter />
+            </BrowserRouter>
+            <Toaster richColors closeButton position="top-right" />
+          </AuthProvider>
+        </I18nProvider>
       </QueryClientProvider>
     </ThemeProvider>
   </StrictMode>,

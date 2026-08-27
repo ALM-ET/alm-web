@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { useAuth } from '@/app/auth';
+import { useT } from '@/app/i18n';
 import { useDashboard } from '@/hooks/queries';
 
 /** Distinct hues per stage, so the funnel reads as a sequence at a glance. */
@@ -142,6 +143,7 @@ function TrendChart({ data }: { data: { label: string; count: number }[] }) {
 }
 
 export function Dashboard() {
+  const t = useT();
   const { bootstrap, can } = useAuth();
   const [range, setRange] = useState('this_month');
   const { data, isLoading } = useDashboard(range);
@@ -151,7 +153,7 @@ export function Dashboard() {
 
   const cards = [
     {
-      label: 'Total candidates',
+      label: t('dashboard.total_candidates', 'Total candidates'),
       value: kpis?.total ?? 0,
       badge:
         kpis?.changePercent === null || kpis?.changePercent === undefined
@@ -160,9 +162,9 @@ export function Dashboard() {
       tone: (kpis?.changePercent ?? 0) >= 0 ? ('success' as const) : ('danger' as const),
       icon: Users,
     },
-    { label: 'In processing', value: kpis?.processing ?? 0, badge: 'Active', tone: 'primary' as const, icon: RefreshCw },
-    { label: 'Departed (30 days)', value: kpis?.recentlyDeparted ?? 0, badge: 'Departed', tone: 'neutral' as const, icon: Plane },
-    { label: 'Awaiting selection', value: kpis?.pendingApprovals ?? 0, badge: 'Pending', tone: 'warning' as const, icon: ShieldAlert },
+    { label: t('dashboard.in_processing', 'In processing'), value: kpis?.processing ?? 0, badge: 'Active', tone: 'primary' as const, icon: RefreshCw },
+    { label: t('dashboard.departed_30', 'Departed (30 days)'), value: kpis?.recentlyDeparted ?? 0, badge: 'Departed', tone: 'neutral' as const, icon: Plane },
+    { label: t('dashboard.awaiting_selection', 'Awaiting selection'), value: kpis?.pendingApprovals ?? 0, badge: 'Pending', tone: 'warning' as const, icon: ShieldAlert },
   ];
 
   const quickActions = [
@@ -177,9 +179,11 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.fullName}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t('dashboard.welcome', 'Welcome back, {name}', { name: user?.fullName ?? '' })}
+          </h1>
           <p className="mt-1 text-muted-foreground">
-            Here is your recruitment pipeline overview for today.
+            {t('dashboard.subtitle', 'Here is your recruitment pipeline overview for today.')}
           </p>
         </div>
 
@@ -220,9 +224,9 @@ export function Dashboard() {
 
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle>Candidate processing pipeline</CardTitle>
+          <CardTitle>{t('dashboard.pipeline', 'Candidate processing pipeline')}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Where everyone is right now. Each tile opens the queue that works it.
+            {t('dashboard.pipeline_hint', 'Where everyone is right now. Each tile opens the queue that works it.')}
           </p>
         </CardHeader>
 
@@ -256,8 +260,10 @@ export function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle>Monthly candidate trend</CardTitle>
-            <p className="text-sm text-muted-foreground">Registrations over the last twelve months.</p>
+            <CardTitle>{t('dashboard.trend', 'Monthly candidate trend')}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {t('dashboard.trend_hint', 'Registrations over the last twelve months.')}
+            </p>
           </CardHeader>
           <CardContent>
             {data ? (
@@ -274,7 +280,7 @@ export function Dashboard() {
           {quickActions.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Quick actions</CardTitle>
+                <CardTitle className="text-base">{t('dashboard.quick_actions', 'Quick actions')}</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-2">
                 {quickActions.map((action) => {
@@ -294,10 +300,10 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Recent activity</CardTitle>
+              <CardTitle className="text-base">{t('dashboard.recent_activity', 'Recent activity')}</CardTitle>
               {can('audit:view') && (
                 <Button variant="link" size="sm" asChild className="h-auto p-0">
-                  <Link to="/audit-logs">View all</Link>
+                  <Link to="/audit-logs">{t('dashboard.view_all', 'View all')}</Link>
                 </Button>
               )}
             </CardHeader>
@@ -305,7 +311,7 @@ export function Dashboard() {
             <CardContent>
               {!data?.activity.length && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  Nothing has happened yet today.
+                  {t('dashboard.no_activity', 'Nothing has happened yet today.')}
                 </p>
               )}
 

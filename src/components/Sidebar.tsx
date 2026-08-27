@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronRight, LogOut } from 'lucide-react';
 import { NAVIGATION, type NavItem } from '@/app/navigation';
 import { useAuth } from '@/app/auth';
+import { useT } from '@/app/i18n';
 import { cn } from '@/lib/utils';
 
 /**
@@ -28,6 +29,7 @@ function useVisibleNav(): NavItem[] {
 }
 
 function NavGroup({ item }: { item: NavItem }) {
+  const t = useT();
   const location = useLocation();
   const containsActive = item.children!.some((child) => location.pathname === child.to);
   const [open, setOpen] = useState(containsActive);
@@ -46,7 +48,7 @@ function NavGroup({ item }: { item: NavItem }) {
         )}
       >
         <Icon className="size-5 shrink-0" />
-        <span className="flex-1 text-start">{item.label}</span>
+        <span className="flex-1 text-start">{t(item.labelKey, item.label)}</span>
         <ChevronRight className={cn('size-4 transition-transform', open && 'rotate-90')} />
       </button>
 
@@ -62,6 +64,7 @@ function NavGroup({ item }: { item: NavItem }) {
 }
 
 function NavRow({ item, nested = false }: { item: NavItem; nested?: boolean }) {
+  const t = useT();
   const Icon = item.icon;
   return (
     <li>
@@ -79,13 +82,14 @@ function NavRow({ item, nested = false }: { item: NavItem; nested?: boolean }) {
         }
       >
         <Icon className="size-5 shrink-0" />
-        <span>{item.label}</span>
+        <span>{t(item.labelKey, item.label)}</span>
       </NavLink>
     </li>
   );
 }
 
 export function Sidebar() {
+  const t = useT();
   const nav = useVisibleNav();
   const { bootstrap, logout } = useAuth();
   const branding = bootstrap?.branding;
@@ -125,7 +129,7 @@ export function Sidebar() {
           className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-sidebar-accent"
         >
           <LogOut className="size-5 rtl-flip" />
-          Log Out
+          {t('nav.log_out', 'Log Out')}
         </button>
       </div>
     </aside>

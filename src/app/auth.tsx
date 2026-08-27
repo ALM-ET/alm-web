@@ -28,9 +28,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await api.bootstrap();
       setBootstrap(data);
       applyBranding(data.branding);
-      document.documentElement.lang = data.locale;
-      document.documentElement.dir =
-        data.availableLocales.find((l) => l.code === data.locale)?.rtl ? 'rtl' : 'ltr';
+      // Language and direction belong to the translation provider alone. Setting
+      // them here too meant whichever ran last won: signing in reset the
+      // document back to the agency's default locale and quietly undid the
+      // language the person had chosen, RTL included.
       setStatus('authenticated');
     } catch {
       setBootstrap(null);
