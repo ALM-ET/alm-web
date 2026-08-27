@@ -30,7 +30,9 @@ function tenantFromHost(): string | undefined {
  * credential. Session continuity comes from the httpOnly refresh cookie.
  */
 export const api = new AlmClient({
-  baseUrl: import.meta.env.VITE_API_URL ?? 'http://localhost:4000',
+  // Same origin by default: the dev server proxies /api, and in production the
+  // app is served alongside it. An explicit URL is only for split deployments.
+  baseUrl: import.meta.env.VITE_API_URL ?? window.location.origin,
   ...(tenantFromHost() ? { tenant: tenantFromHost()! } : {}),
   onAuthFailure: () => {
     // Full reload rather than a router navigation: it guarantees every cached
