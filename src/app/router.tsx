@@ -7,6 +7,7 @@ import { Dashboard } from '@/routes/Dashboard';
 import { Placeholder } from '@/routes/Placeholder';
 import { CvBuilder } from '@/routes/candidates/CvBuilder';
 import { Reports } from '@/routes/Reports';
+import { Enquiries } from '@/routes/Enquiries';
 import { StaffAccounts } from '@/routes/staff/StaffAccounts';
 import { StaffForm } from '@/routes/staff/StaffForm';
 import { RolesTemplates } from '@/routes/staff/RolesTemplates';
@@ -235,6 +236,14 @@ export function AppRouter() {
           element={
             <RequirePermission permission="cv:view">
               <CvBuilder />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="enquiries"
+          element={
+            <RequirePermission permission="enquiries:view">
+              <Enquiries />
             </RequirePermission>
           }
         />

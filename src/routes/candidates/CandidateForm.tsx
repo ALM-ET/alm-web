@@ -270,6 +270,21 @@ export function CandidateForm() {
       } else {
         const created = await createCandidate.mutateAsync(payload);
         toast.success(`${created.fullName} registered`);
+
+        // Link the website enquiry this started from, if it started from one.
+        // Done after the candidate exists rather than before, so a registration
+        // that fails validation does not mark somebody's application handled.
+        const enquiryId = (location.state as { enquiryId?: string } | null)?.enquiryId;
+        if (enquiryId) {
+          await api
+            .post(`/api/v1/enquiries/${enquiryId}/converted`, { candidateId: created.id })
+            .catch(() => {
+              // The candidate is registered either way; a broken link is worth
+              // a note, not a failed registration.
+              toast.warning('Registered, but the website enquiry could not be linked.');
+            });
+        }
+
         navigate(`/candidates/${created.id}`);
         return;
       }
