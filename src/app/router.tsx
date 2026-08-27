@@ -9,6 +9,10 @@ import { StaffAccounts } from '@/routes/staff/StaffAccounts';
 import { StaffForm } from '@/routes/staff/StaffForm';
 import { RolesTemplates } from '@/routes/staff/RolesTemplates';
 import { AuditLogs } from '@/routes/AuditLogs';
+import { CandidateDirectory } from '@/routes/candidates/CandidateDirectory';
+import { CandidateForm } from '@/routes/candidates/CandidateForm';
+import { Offices } from '@/routes/partners/Offices';
+import { Agents } from '@/routes/partners/Agents';
 import { useAuth } from './auth';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -63,18 +67,13 @@ function RequirePermission({
 
 /** Every screen from the recorded system, routed now and filled in per milestone. */
 const PLACEHOLDERS: { path: string; title: string; milestone: string }[] = [
-  { path: 'candidates', title: 'Candidates Directory', milestone: 'M2' },
   { path: 'candidates/cv', title: 'Create CV', milestone: 'M6' },
-  { path: 'candidates/new', title: 'Register Candidate', milestone: 'M2' },
-  { path: 'candidates/archived', title: 'Archived Candidates', milestone: 'M2' },
   { path: 'processing/lmis', title: 'LMIS Pipeline', milestone: 'M3' },
   { path: 'processing/embassy', title: 'Embassy Pipeline', milestone: 'M3' },
   { path: 'deployment/tickets', title: 'Flight Tickets', milestone: 'M3' },
   { path: 'deployment/issued', title: 'Issued Tickets', milestone: 'M3' },
   { path: 'deployment/departed', title: 'Departed List', milestone: 'M3' },
   { path: 'deployment/returned', title: 'Returned List', milestone: 'M3' },
-  { path: 'offices', title: 'Overseas Offices', milestone: 'M2' },
-  { path: 'agents', title: 'Local Agents', milestone: 'M2' },
   { path: 'settings', title: 'System Settings', milestone: 'M3' },
   { path: 'profile', title: 'Profile', milestone: 'M1' },
 ];
@@ -121,6 +120,54 @@ export function AppRouter() {
           element={
             <RequirePermission permission="staff:edit">
               <StaffForm />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="candidates"
+          element={
+            <RequirePermission permission="candidates:view">
+              <CandidateDirectory />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="candidates/archived"
+          element={
+            <RequirePermission permission="candidates:view">
+              <CandidateDirectory archived />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="candidates/new"
+          element={
+            <RequirePermission permission="candidates:edit">
+              <CandidateForm />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="candidates/:id"
+          element={
+            <RequirePermission permission="candidates:view">
+              <CandidateForm />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="offices"
+          element={
+            <RequirePermission permission="offices:view">
+              <Offices />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="agents"
+          element={
+            <RequirePermission permission="agents:view">
+              <Agents />
             </RequirePermission>
           }
         />
