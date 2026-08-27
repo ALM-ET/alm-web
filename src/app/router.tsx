@@ -5,6 +5,8 @@ import { AdminLayout } from '@/layouts/AdminLayout';
 import { Login } from '@/routes/Login';
 import { Dashboard } from '@/routes/Dashboard';
 import { Placeholder } from '@/routes/Placeholder';
+import { CvBuilder } from '@/routes/candidates/CvBuilder';
+import { Reports } from '@/routes/Reports';
 import { StaffAccounts } from '@/routes/staff/StaffAccounts';
 import { StaffForm } from '@/routes/staff/StaffForm';
 import { RolesTemplates } from '@/routes/staff/RolesTemplates';
@@ -76,7 +78,6 @@ function RequirePermission({
 
 /** Every screen from the recorded system, routed now and filled in per milestone. */
 const PLACEHOLDERS: { path: string; title: string; milestone: string }[] = [
-  { path: 'candidates/cv', title: 'Create CV', milestone: 'M6' },
   { path: 'profile', title: 'Profile', milestone: 'M1' },
 ];
 
@@ -226,6 +227,22 @@ export function AppRouter() {
           element={
             <RequirePermission permission="settings:view">
               <SystemSettings />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="candidates/cv"
+          element={
+            <RequirePermission permission="cv:view">
+              <CvBuilder />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="reports"
+          element={
+            <RequirePermission permission="reports:view">
+              <Reports />
             </RequirePermission>
           }
         />

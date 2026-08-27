@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
+  AlertTriangle,
   ArrowLeft,
   Briefcase,
   ClipboardList,
@@ -21,6 +22,9 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
+import { useAuth } from '@/app/auth';
+import { PassportScan, type PassportScanResult } from '@/components/PassportScan';
+import { fieldsFromScan } from '@/lib/passport';
 import {
   useAgents,
   useCandidate,
@@ -121,6 +125,7 @@ function Field({
   hint,
   children,
   wide = false,
+  flagged,
 }: {
   id: string;
   label: string;
@@ -128,12 +133,22 @@ function Field({
   hint?: string;
   children: ReactNode;
   wide?: boolean;
+  /** Filled from a passport read, and not yet confirmed by a person. */
+  flagged?: string;
 }) {
   return (
     <div className={`space-y-2 ${wide ? 'sm:col-span-2' : ''}`}>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={flagged ? 'text-[var(--color-warning)]' : undefined}>
+        {label}
+      </Label>
       {children}
-      {hint && !error && <p className="text-sm text-muted-foreground">{hint}</p>}
+      {flagged && !error && (
+        <p className="flex items-start gap-1.5 text-sm text-[var(--color-warning)]">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+          {flagged}
+        </p>
+      )}
+      {hint && !error && !flagged && <p className="text-sm text-muted-foreground">{hint}</p>}
       {error && (
         <p id={`${id}-error`} className="text-sm text-destructive">
           {error}
@@ -153,8 +168,10 @@ export function CandidateForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInput = useRef<HTMLInputElement>(null);
 
+  const { isFlagEnabled } = useAuth();
   const { data: candidate, isLoading } = useCandidate(id);
   const { data: offices } = useOffices();
   const { data: agents } = useAgents();
@@ -167,6 +184,31 @@ export function CandidateForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [documentKind, setDocumentKind] = useState('passport_scan');
+  /**
+   * Fields the passport reader filled but could not vouch for.
+   *
+   * Kept as state rather than baked into the values, because confirming one is
+   * an act: touching the field clears its flag, which is what "a person looked
+   * at the document" means here.
+   */
+  const [unconfirmed, setUnconfirmed] = useState<Record<string, string>>({});
+
+  /**
+   * Carried over from the CV builder.
+   *
+   * The recorded flow ends with "Proceed to Register Candidate", and somebody
+   * who has just typed a candidate's whole history into the CV form will not
+   * type it again — they will register a half-empty record instead.
+   */
+  useEffect(() => {
+    const prefill = (location.state as { prefill?: Record<string, string> } | null)?.prefill;
+    if (!prefill || isEdit) return;
+
+    setValues((current) => ({
+      ...current,
+      ...Object.fromEntries(Object.entries(prefill).filter(([key, value]) => value && key in BLANK)),
+    }));
+  }, [location.state, isEdit]);
 
   useEffect(() => {
     if (!candidate) return;
@@ -184,8 +226,28 @@ export function CandidateForm() {
     setValues(next);
   }, [candidate]);
 
-  const set = (key: string) => (event: { target: { value: string } }) =>
+  const set = (key: string) => (event: { target: { value: string } }) => {
     setValues((current) => ({ ...current, [key]: event.target.value }));
+    setUnconfirmed((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  /**
+   * Apply a passport read to the form.
+   *
+   * Only fills what is empty or was itself filled by a previous read: somebody
+   * who has already typed a corrected passport number should not have it
+   * silently replaced by scanning the document a second time.
+   */
+  const applyScan = (scan: PassportScanResult) => {
+    const { values: filled, flags } = fieldsFromScan(scan);
+    setValues((current) => ({ ...current, ...filled }));
+    setUnconfirmed(flags);
+  };
 
   const age = useMemo(() => ageFrom(String(values.dateOfBirth ?? '')), [values.dateOfBirth]);
   const pending = createCandidate.isPending || updateCandidate.isPending;
@@ -279,8 +341,12 @@ export function CandidateForm() {
         </p>
       )}
 
+      {!isEdit && isFlagEnabled('candidates.passport_scan') && (
+        <PassportScan onScanned={applyScan} disabled={pending} />
+      )}
+
       <Section icon={UserRound} title="Personal details">
-        <Field id="fullName" label="Full name (matching passport) *" error={fieldErrors.fullName}>
+        <Field id="fullName" label="Full name (matching passport) *" error={fieldErrors.fullName} flagged={unconfirmed.fullName}>
           <Input
             id="fullName"
             required
@@ -291,7 +357,7 @@ export function CandidateForm() {
           />
         </Field>
 
-        <Field id="passportNumber" label="Passport number *" error={fieldErrors.passportNumber}>
+        <Field id="passportNumber" label="Passport number *" error={fieldErrors.passportNumber} flagged={unconfirmed.passportNumber}>
           <Input
             id="passportNumber"
             required
@@ -302,11 +368,11 @@ export function CandidateForm() {
           />
         </Field>
 
-        <Field id="passportIssueDate" label="Passport issue date" error={fieldErrors.passportIssueDate}>
+        <Field id="passportIssueDate" label="Passport issue date" error={fieldErrors.passportIssueDate} flagged={unconfirmed.passportIssueDate}>
           <Input id="passportIssueDate" type="date" value={String(values.passportIssueDate)} onChange={set('passportIssueDate')} />
         </Field>
 
-        <Field id="passportExpiryDate" label="Passport expiry date" error={fieldErrors.passportExpiryDate}>
+        <Field id="passportExpiryDate" label="Passport expiry date" error={fieldErrors.passportExpiryDate} flagged={unconfirmed.passportExpiryDate}>
           <Input id="passportExpiryDate" type="date" value={String(values.passportExpiryDate)} onChange={set('passportExpiryDate')} />
         </Field>
 
@@ -314,7 +380,7 @@ export function CandidateForm() {
           <Input id="phone" value={String(values.phone)} onChange={set('phone')} placeholder="+251911223344" />
         </Field>
 
-        <Field id="dateOfBirth" label={`Date of birth (age: ${age})`} error={fieldErrors.dateOfBirth}>
+        <Field id="dateOfBirth" label={`Date of birth (age: ${age})`} error={fieldErrors.dateOfBirth} flagged={unconfirmed.dateOfBirth}>
           <Input
             id="dateOfBirth"
             type="date"
@@ -324,7 +390,7 @@ export function CandidateForm() {
           />
         </Field>
 
-        <Field id="nationality" label="Nationality">
+        <Field id="nationality" label="Nationality" flagged={unconfirmed.nationality}>
           <Input id="nationality" value={String(values.nationality)} onChange={set('nationality')} />
         </Field>
 
@@ -343,7 +409,7 @@ export function CandidateForm() {
           </Select>
         </Field>
 
-        <Field id="gender" label="Gender">
+        <Field id="gender" label="Gender" flagged={unconfirmed.gender}>
           <Select id="gender" value={String(values.gender)} onChange={set('gender')}>
             <option value="">— Select —</option>
             <option value="female">Female</option>
