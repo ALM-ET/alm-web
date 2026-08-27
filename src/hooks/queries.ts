@@ -421,3 +421,210 @@ export function useSaveAgent() {
 export function useDeleteAgent() {
   return usePartnerMutation('agents', (id: string) => api.delete<void>(`/api/v1/agents/${id}`));
 }
+
+/* ---------------------------------------------------------------- pipeline */
+
+export interface QueueRow {
+  id: string;
+  fullName: string;
+  passportNumber: string;
+  labourId: string;
+  destinationCountry: string | null;
+  stage: string;
+  medicalStatus: string;
+  visaNumber: string | null;
+  visaDate: string | null;
+  flightTicketDate: string | null;
+  departureDate: string | null;
+  returnDate: string | null;
+  returnReason: string | null;
+  gender: string | null;
+  religion: string | null;
+  lmisStatus: { id: string; name: string } | null;
+  embassyStatus: { id: string; name: string } | null;
+  ticketStatus: { id: string; name: string } | null;
+  office: { id: string; name: string } | null;
+  agent: { id: string; fullName: string } | null;
+}
+
+export interface TransitionOption {
+  stage: string;
+  label: string;
+  direction: 'forward' | 'backward' | 'same';
+  requiresReason: boolean;
+  permitted: boolean;
+  missing: string[];
+  problem: string | null;
+}
+
+export interface StatusDefinition {
+  id: string;
+  category: 'lmis' | 'embassy' | 'ticket';
+  name: string;
+  position: number;
+  isDefault: boolean;
+}
+
+export interface QueueFilters {
+  search: string;
+  statusId: string;
+  gender: string;
+  religion: string;
+  page: number;
+}
+
+export const EMPTY_QUEUE_FILTERS: QueueFilters = {
+  search: '',
+  statusId: 'all',
+  gender: 'all',
+  religion: 'all',
+  page: 1,
+};
+
+export function useQueue(queue: string, filters: QueueFilters) {
+  return useQuery({
+    queryKey: ['pipeline', queue, filters],
+    queryFn: () =>
+      api.get<{ items: QueueRow[]; total: number; page: number; pageSize: number }>(
+        `/api/v1/pipeline/queues/${queue}`,
+        {
+          query: {
+            ...(filters.search ? { search: filters.search } : {}),
+            ...(filters.statusId !== 'all' ? { statusId: filters.statusId } : {}),
+            ...(filters.gender !== 'all' ? { gender: filters.gender } : {}),
+            ...(filters.religion !== 'all' ? { religion: filters.religion } : {}),
+            page: filters.page,
+          },
+        },
+      ),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useTransitions(candidateId: string | null) {
+  return useQuery({
+    queryKey: ['pipeline', 'transitions', candidateId],
+    queryFn: () =>
+      api.get<{ stage: string; next: string | null; options: TransitionOption[] }>(
+        `/api/v1/pipeline/candidates/${candidateId}/transitions`,
+      ),
+    enabled: Boolean(candidateId),
+  });
+}
+
+export function useStageHistory(candidateId: string | null) {
+  return useQuery({
+    queryKey: ['pipeline', 'history', candidateId],
+    queryFn: () =>
+      api
+        .get<{
+          items: {
+            id: string;
+            fromStage: string | null;
+            toStage: string;
+            reason: string | null;
+            actorName: string;
+            createdAt: string;
+          }[];
+        }>(`/api/v1/pipeline/candidates/${candidateId}/history`)
+        .then((r) => r.items),
+    enabled: Boolean(candidateId),
+  });
+}
+
+export function useAdvanceCandidate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      toStage,
+      reason,
+      patch,
+    }: {
+      id: string;
+      toStage: string;
+      reason?: string;
+      patch?: Record<string, unknown>;
+    }) =>
+      api.post<QueueRow>(`/api/v1/pipeline/candidates/${id}/advance`, {
+        toStage,
+        ...(reason ? { reason } : {}),
+        ...(patch ? { patch } : {}),
+      }),
+    onSuccess: () => {
+      // A stage change moves the candidate between queues and shifts the
+      // dashboard funnel, so nothing that touches them can stay cached.
+      void client.invalidateQueries({ queryKey: ['pipeline'] });
+      void client.invalidateQueries({ queryKey: ['candidates'] });
+      void client.invalidateQueries({ queryKey: ['dashboard'] });
+      void client.invalidateQueries({ queryKey: ['audit'] });
+    },
+  });
+}
+
+export function useStatuses(category?: 'lmis' | 'embassy' | 'ticket') {
+  return useQuery({
+    queryKey: ['statuses', category ?? 'all'],
+    queryFn: () =>
+      api
+        .get<{ items: StatusDefinition[] }>('/api/v1/statuses', {
+          query: category ? { category } : {},
+        })
+        .then((r) => r.items),
+  });
+}
+
+function useStatusMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['statuses'] });
+      void client.invalidateQueries({ queryKey: ['pipeline'] });
+      void client.invalidateQueries({ queryKey: ['audit'] });
+    },
+  });
+}
+
+export function useSaveStatus() {
+  return useStatusMutation(({ id, ...input }: Record<string, unknown> & { id?: string }) =>
+    id
+      ? api.patch<StatusDefinition>(`/api/v1/statuses/${id}`, input)
+      : api.post<StatusDefinition>('/api/v1/statuses', input),
+  );
+}
+
+export function useDeleteStatus() {
+  return useStatusMutation((id: string) => api.delete<void>(`/api/v1/statuses/${id}`));
+}
+
+/* --------------------------------------------------------------- dashboard */
+
+export interface DashboardData {
+  range: string;
+  kpis: {
+    total: number;
+    registeredInRange: number;
+    changePercent: number | null;
+    processing: number;
+    recentlyDeparted: number;
+    pendingApprovals: number;
+  };
+  funnel: { stage: string; label: string; description: string; count: number }[];
+  trend: { month: string; label: string; count: number }[];
+  activity: {
+    id: string;
+    actorName: string;
+    description: string;
+    entityType: string;
+    createdAt: string;
+  }[];
+}
+
+export function useDashboard(range: string) {
+  return useQuery({
+    queryKey: ['dashboard', range],
+    queryFn: () => api.get<DashboardData>('/api/v1/dashboard', { query: { range } }),
+    placeholderData: (previous) => previous,
+  });
+}

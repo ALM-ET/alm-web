@@ -12,6 +12,15 @@ import { AuditLogs } from '@/routes/AuditLogs';
 import { CandidateDirectory } from '@/routes/candidates/CandidateDirectory';
 import { CandidateForm } from '@/routes/candidates/CandidateForm';
 import { Offices } from '@/routes/partners/Offices';
+import { SystemSettings } from '@/routes/SystemSettings';
+import {
+  DepartedQueue,
+  EmbassyQueue,
+  IssuedTicketsQueue,
+  LmisQueue,
+  ReturnedQueue,
+  TicketsQueue,
+} from '@/routes/pipeline/QueueScreen';
 import { Agents } from '@/routes/partners/Agents';
 import { useAuth } from './auth';
 
@@ -68,13 +77,6 @@ function RequirePermission({
 /** Every screen from the recorded system, routed now and filled in per milestone. */
 const PLACEHOLDERS: { path: string; title: string; milestone: string }[] = [
   { path: 'candidates/cv', title: 'Create CV', milestone: 'M6' },
-  { path: 'processing/lmis', title: 'LMIS Pipeline', milestone: 'M3' },
-  { path: 'processing/embassy', title: 'Embassy Pipeline', milestone: 'M3' },
-  { path: 'deployment/tickets', title: 'Flight Tickets', milestone: 'M3' },
-  { path: 'deployment/issued', title: 'Issued Tickets', milestone: 'M3' },
-  { path: 'deployment/departed', title: 'Departed List', milestone: 'M3' },
-  { path: 'deployment/returned', title: 'Returned List', milestone: 'M3' },
-  { path: 'settings', title: 'System Settings', milestone: 'M3' },
   { path: 'profile', title: 'Profile', milestone: 'M1' },
 ];
 
@@ -168,6 +170,62 @@ export function AppRouter() {
           element={
             <RequirePermission permission="agents:view">
               <Agents />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="processing/lmis"
+          element={
+            <RequirePermission permission="lmis:view">
+              <LmisQueue />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="processing/embassy"
+          element={
+            <RequirePermission permission="embassy:view">
+              <EmbassyQueue />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="deployment/tickets"
+          element={
+            <RequirePermission permission="tickets:view">
+              <TicketsQueue />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="deployment/issued"
+          element={
+            <RequirePermission permission="tickets:view">
+              <IssuedTicketsQueue />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="deployment/departed"
+          element={
+            <RequirePermission permission="deployments:view">
+              <DepartedQueue />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="deployment/returned"
+          element={
+            <RequirePermission permission="returns:view">
+              <ReturnedQueue />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <RequirePermission permission="settings:view">
+              <SystemSettings />
             </RequirePermission>
           }
         />
