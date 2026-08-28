@@ -7,6 +7,7 @@ import { AccessMatrix } from '@/components/AccessMatrix';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useCreateStaff, useRoles, useStaff, useUpdateStaff } from '@/hooks/queries';
@@ -173,9 +174,8 @@ export function StaffForm() {
           {!isEdit && (
             <div className="space-y-2">
               <Label htmlFor="password">Access password *</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 required
                 autoComplete="new-password"
                 value={password}

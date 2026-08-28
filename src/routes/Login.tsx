@@ -5,6 +5,7 @@ import { ApiError } from '@alm/sdk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/app/auth';
 import { useT } from '@/app/i18n';
@@ -79,14 +80,15 @@ export function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="password">{t('auth.password', 'Password')}</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={Boolean(fieldErrors.password)}
+                showLabel={t('auth.show_password', 'Show password')}
+                hideLabel={t('auth.hide_password', 'Hide password')}
               />
               {fieldErrors.password && <p className="text-sm text-destructive">{fieldErrors.password}</p>}
             </div>

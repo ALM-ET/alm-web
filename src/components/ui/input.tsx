@@ -1,9 +1,17 @@
-import type { ComponentProps } from 'react';
+import { forwardRef, type ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
-export function Input({ className, type, ...props }: ComponentProps<'input'>) {
+/**
+ * Forwards its ref, because a couple of wrappers need to drive the element
+ * itself — the password toggle has to put the caret back in the field.
+ */
+export const Input = forwardRef<HTMLInputElement, ComponentProps<'input'>>(function Input(
+  { className, type, ...props },
+  ref,
+) {
   return (
     <input
+      ref={ref}
       type={type}
       className={cn(
         'flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm',
@@ -16,4 +24,4 @@ export function Input({ className, type, ...props }: ComponentProps<'input'>) {
       {...props}
     />
   );
-}
+});
