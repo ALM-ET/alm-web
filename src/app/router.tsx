@@ -7,6 +7,7 @@ import { Dashboard } from '@/routes/Dashboard';
 import { Placeholder } from '@/routes/Placeholder';
 import { CvBuilder } from '@/routes/candidates/CvBuilder';
 import { Reports } from '@/routes/Reports';
+import { Profile } from '@/routes/Profile';
 import { Enquiries } from '@/routes/Enquiries';
 import { StaffAccounts } from '@/routes/staff/StaffAccounts';
 import { StaffForm } from '@/routes/staff/StaffForm';
@@ -78,9 +79,12 @@ function RequirePermission({
 }
 
 /** Every screen from the recorded system, routed now and filled in per milestone. */
-const PLACEHOLDERS: { path: string; title: string; milestone: string }[] = [
-  { path: 'profile', title: 'Profile', milestone: 'M1' },
-];
+/**
+ * Screens routed but not yet built. Empty now — every screen in the recording
+ * exists. Kept because the next new one should be routed before it is written,
+ * so a menu entry never leads nowhere.
+ */
+const PLACEHOLDERS: { path: string; title: string; milestone: string }[] = [];
 
 export function AppRouter() {
   return (
@@ -239,6 +243,9 @@ export function AppRouter() {
             </RequirePermission>
           }
         />
+        {/* No permission gate: everybody may edit their own details, and only
+            their own. */}
+        <Route path="profile" element={<Profile />} />
         <Route
           path="enquiries"
           element={
