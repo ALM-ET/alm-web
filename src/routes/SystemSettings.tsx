@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EmptyRow, Table, TableWrapper, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { useAuth } from '@/app/auth';
+import { LicencePanel } from '@/components/LicencePanel';
 import { useDeleteStatus, useSaveStatus, useStatuses, type StatusDefinition } from '@/hooks/queries';
 import { cn } from '@/lib/utils';
 
@@ -91,6 +92,10 @@ export function SystemSettings() {
           How this agency's pipelines are labelled and how the workspace behaves.
         </p>
       </div>
+
+      {/* Absent entirely on the hosted platform, where there is no licence to
+          manage; it renders nothing there rather than showing an empty panel. */}
+      <LicencePanel />
 
       <Card>
         <CardHeader className="pb-4">
