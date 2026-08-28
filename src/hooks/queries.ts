@@ -57,10 +57,40 @@ export const staffKeys = {
   roles: ['roles'] as const,
 };
 
-export function useStaff() {
+/**
+ * The staff directory, one page at a time.
+ *
+ * `page` is part of the query key, so moving between pages is a separate cached
+ * fetch rather than a refetch that blanks the table.
+ */
+export interface Paged<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+export function useStaff(page = 1) {
   return useQuery({
-    queryKey: staffKeys.all,
-    queryFn: () => api.get<{ items: StaffAccount[] }>('/api/v1/staff').then((r) => r.items),
+    queryKey: [...staffKeys.all, page],
+    queryFn: () => api.get<Paged<StaffAccount>>('/api/v1/staff', { query: { page } }),
+    placeholderData: (previous) => previous,
+  });
+}
+
+/**
+ * One staff account, by id.
+ *
+ * The edit form used to search the directory it had already loaded, which
+ * stopped working the moment that directory was paged: somebody on page three
+ * was simply not found and the form opened blank over a real account.
+ */
+export function useStaffAccount(id: string | undefined) {
+  return useQuery({
+    queryKey: [...staffKeys.all, 'one', id],
+    queryFn: () => api.get<StaffAccount>(`/api/v1/staff/${id}`),
+    enabled: Boolean(id),
   });
 }
 
@@ -373,17 +403,46 @@ export function useDeleteDocument() {
 
 /* ------------------------------------------------------- offices and agents */
 
+/**
+ * A whole list, for a dropdown.
+ *
+ * These endpoints are paged now, which is right for a screen and wrong for a
+ * picker: a candidate form offering the first twenty-five offices and silently
+ * omitting the twenty-sixth is worse than a slow page, because nobody notices.
+ *
+ * So the picker asks for the maximum page and follows on if there is more. In
+ * practice an agency has a dozen offices and this is one request; the loop
+ * exists so that the day one has three hundred, the form is still correct
+ * rather than quietly wrong.
+ */
+async function everything<T>(path: string): Promise<T[]> {
+  const collected: T[] = [];
+  let page = 1;
+
+  for (;;) {
+    const result = await api.get<Paged<T>>(path, { query: { page, pageSize: 100 } });
+    collected.push(...result.items);
+
+    if (!result.hasMore) return collected;
+    page += 1;
+
+    // A guard rather than a limit: if `hasMore` ever lies, this stops the tab
+    // from spinning forever instead of hanging on a loop nobody can see.
+    if (page > 50) return collected;
+  }
+}
+
 export function useOffices() {
   return useQuery({
     queryKey: ['offices'],
-    queryFn: () => api.get<{ items: PartnerOffice[] }>('/api/v1/offices').then((r) => r.items),
+    queryFn: () => everything<PartnerOffice>('/api/v1/offices'),
   });
 }
 
 export function useAgents() {
   return useQuery({
     queryKey: ['agents'],
-    queryFn: () => api.get<{ items: FieldAgent[] }>('/api/v1/agents').then((r) => r.items),
+    queryFn: () => everything<FieldAgent>('/api/v1/agents'),
   });
 }
 

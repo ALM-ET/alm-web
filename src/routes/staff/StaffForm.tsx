@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { useCreateStaff, useRoles, useStaff, useUpdateStaff } from '@/hooks/queries';
+import { useCreateStaff, useRoles, useStaffAccount, useUpdateStaff } from '@/hooks/queries';
 
 const DIRECT = 'direct';
 
@@ -28,11 +28,10 @@ export function StaffForm() {
   const navigate = useNavigate();
 
   const { data: roles } = useRoles();
-  const { data: staff } = useStaff();
+  const { data: existing } = useStaffAccount(id);
   const createStaff = useCreateStaff();
   const updateStaff = useUpdateStaff();
 
-  const existing = useMemo(() => staff?.find((account) => account.id === id), [staff, id]);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');

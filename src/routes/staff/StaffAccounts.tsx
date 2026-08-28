@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyRow, Table, TableWrapper, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { Pager } from '@/components/ui/pager';
 import { useAuth } from '@/app/auth';
 import { useDeleteStaff, useStaff, useUpdateStaff, type StaffAccount } from '@/hooks/queries';
 
@@ -29,7 +30,9 @@ function relative(iso: string | null): string {
 
 export function StaffAccounts() {
   const { can } = useAuth();
-  const { data: staff, isLoading, error } = useStaff();
+  const [page, setPage] = useState(1);
+  const { data, isLoading, error } = useStaff(page);
+  const staff = data?.items;
   const updateStaff = useUpdateStaff();
   const deleteStaff = useDeleteStaff();
   const [pendingDelete, setPendingDelete] = useState<StaffAccount | null>(null);
@@ -185,6 +188,15 @@ export function StaffAccounts() {
           </TBody>
         </Table>
       </TableWrapper>
+
+      {data && (
+        <Pager
+          page={data.page}
+          pageSize={data.pageSize}
+          total={data.total}
+          onChange={setPage}
+        />
+      )}
 
       <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <DialogContent className="w-[min(28rem,calc(100vw-2rem))]">
