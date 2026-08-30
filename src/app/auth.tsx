@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       refresh: load,
       can: (permission) => hasPermission(permissions, permission),
-      // Flags resolve server-side (M4); an unknown flag is off, never on.
+      // Flags resolve server-side; an unknown flag is off, never on.
       isFlagEnabled: (flag) => bootstrap?.flags[flag] === true,
       hasModule: (module) => bootstrap?.modules.includes(module) ?? false,
     };

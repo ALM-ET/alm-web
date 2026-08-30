@@ -39,9 +39,9 @@ export interface NavItem {
 
 /**
  * The sidebar, mirroring the recorded system exactly — same order, same
- * grouping, same labels. Every entry declares the permission and module that
- * gate it, so M1 (roles) and M4 (module toggles) light up without editing this
- * file again.
+ * grouping, same labels. Every entry declares the permission and the module
+ * that gate it, so an agency on a smaller plan simply does not see the screens
+ * it has not bought, and a restricted role does not see what it cannot open.
  */
 export const NAVIGATION: NavItem[] = [
   { label: 'Dashboard', labelKey: 'nav.dashboard', to: '/dashboard', icon: LayoutDashboard },

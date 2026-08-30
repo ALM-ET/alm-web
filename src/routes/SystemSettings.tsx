@@ -40,9 +40,10 @@ interface Draft {
 /**
  * System settings.
  *
- * M3 delivers the status catalogue — the part of this screen that changes how
- * the pipelines behave. Company branding and the mail server arrive in M4 and
- * are shown here as what they are rather than as empty tabs.
+ * The status catalogue is the part of this screen that changes how the
+ * pipelines behave. Branding is set from the control plane and outgoing mail is
+ * not built, so both are stated here as what they are rather than left as empty
+ * tabs somebody keeps clicking.
  */
 export function SystemSettings() {
   const { can } = useAuth();
@@ -220,13 +221,20 @@ export function SystemSettings() {
         </CardContent>
       </Card>
 
-      <Card className="border-dashed">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Company profile, branding and mail server</CardTitle>
+          <CardTitle className="text-base">Company profile and branding</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Agency name, logo, colours and the outgoing mail server arrive in M4, alongside the
-          logo-driven palette and the module switches.
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            Your agency's name, logo and colours are set by the platform administrator. Send them a
+            logo and the palette is taken from it; ask if you want something different.
+          </p>
+          <p>
+            Outgoing email is not configured from here yet. Until it is, the system sends nothing
+            on your behalf — it records and it exports, and correspondence stays wherever you do it
+            today.
+          </p>
         </CardContent>
       </Card>
 

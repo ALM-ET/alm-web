@@ -4,7 +4,6 @@ import type { Permission } from '@alm/sdk';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { Login } from '@/routes/Login';
 import { Dashboard } from '@/routes/Dashboard';
-import { Placeholder } from '@/routes/Placeholder';
 import { CvBuilder } from '@/routes/candidates/CvBuilder';
 import { Reports } from '@/routes/Reports';
 import { Profile } from '@/routes/Profile';
@@ -78,13 +77,7 @@ function RequirePermission({
   return <>{children}</>;
 }
 
-/** Every screen from the recorded system, routed now and filled in per milestone. */
-/**
- * Screens routed but not yet built. Empty now — every screen in the recording
- * exists. Kept because the next new one should be routed before it is written,
- * so a menu entry never leads nowhere.
- */
-const PLACEHOLDERS: { path: string; title: string; milestone: string }[] = [];
+
 
 export function AppRouter() {
   return (
@@ -270,13 +263,6 @@ export function AppRouter() {
             </RequirePermission>
           }
         />
-        {PLACEHOLDERS.map((entry) => (
-          <Route
-            key={entry.path}
-            path={entry.path}
-            element={<Placeholder title={entry.title} milestone={entry.milestone} />}
-          />
-        ))}
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
