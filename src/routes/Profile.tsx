@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/ui/password-input';
 import { api } from '@/lib/api';
+import { TwoFactorPanel } from '@/components/TwoFactorPanel';
 import { useAuth } from '@/app/auth';
 import { useT } from '@/app/i18n';
 
@@ -225,6 +226,8 @@ export function Profile() {
           </Button>
         </CardContent>
       </Card>
+
+      <TwoFactorPanel />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

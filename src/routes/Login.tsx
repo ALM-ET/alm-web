@@ -19,6 +19,8 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
+  const [needsCode, setNeedsCode] = useState(false);
+  const [totp, setTotp] = useState('');
 
   if (status === 'authenticated') {
     return <Navigate to={params.get('next') ?? '/dashboard'} replace />;
@@ -30,9 +32,31 @@ export function Login() {
     setError(null);
     setFieldErrors({});
     try {
-      await login(email, password);
+      await login(email, password, totp.trim() || undefined);
     } catch (caught) {
       if (caught instanceof ApiError) {
+        /*
+         * The account has a second factor and we have not asked for it yet.
+         *
+         * Presented as the next step rather than as a failure: the password was
+         * right, and telling somebody their sign-in failed when it did not is
+         * how people start doubting the password they just typed correctly.
+         */
+        if (caught.code === 'mfa_required') {
+          setNeedsCode(true);
+          setError(null);
+          setFieldErrors({});
+          return;
+        }
+
+        if (caught.code === 'mfa_invalid') {
+          setNeedsCode(true);
+          setError(caught.message);
+          setFieldErrors({});
+          setTotp('');
+          return;
+        }
+
         setError(caught.message);
         setFieldErrors(caught.fields);
       } else {
@@ -92,6 +116,30 @@ export function Login() {
               />
               {fieldErrors.password && <p className="text-sm text-destructive">{fieldErrors.password}</p>}
             </div>
+
+            {needsCode && (
+              <div className="space-y-2">
+                <Label htmlFor="totp">{t('auth.code', 'Code from your authenticator app')}</Label>
+                <Input
+                  id="totp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  // Focused the moment it appears, because the person is
+                  // already holding their phone.
+                  autoFocus
+                  placeholder="000000"
+                  className="font-mono"
+                  value={totp}
+                  onChange={(event) => setTotp(event.target.value)}
+                />
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    'auth.code_or_recovery',
+                    'Or one of the recovery codes you saved when you turned this on.',
+                  )}
+                </p>
+              </div>
+            )}
 
             {error && (
               <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
