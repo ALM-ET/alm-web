@@ -28,6 +28,7 @@ import {
   useCandidates,
   useOffices,
   type CandidateFilters,
+  type CandidateRow,
 } from '@/hooks/queries';
 
 const MEDICAL_TONE: Record<string, BadgeProps['tone']> = {
@@ -36,6 +37,36 @@ const MEDICAL_TONE: Record<string, BadgeProps['tone']> = {
   unfit: 'danger',
   expired: 'neutral',
 };
+
+const COC_TONE: Record<string, BadgeProps['tone']> = {
+  issued: 'success',
+  pending: 'warning',
+  expired: 'danger',
+};
+
+/** Two weeks is roughly how long it takes to book a COC reassessment. */
+const COC_WARNING_DAYS = 14;
+
+function CocBadge({ candidate }: { candidate: CandidateRow }) {
+  const daysLeft = candidate.cocExpiryDate
+    ? Math.ceil((new Date(candidate.cocExpiryDate).getTime() - Date.now()) / 86_400_000)
+    : null;
+  const expiringSoon =
+    candidate.cocStatus === 'issued' && daysLeft !== null && daysLeft <= COC_WARNING_DAYS;
+
+  return (
+    <>
+      <Badge tone={expiringSoon ? 'warning' : (COC_TONE[candidate.cocStatus] ?? 'neutral')}>
+        {candidate.cocStatus}
+      </Badge>
+      {expiringSoon && (
+        <span className="block text-xs text-warning">
+          {daysLeft === 0 ? 'expires today' : `expires in ${daysLeft}d`}
+        </span>
+      )}
+    </>
+  );
+}
 
 const STAGE_TONE: Record<string, BadgeProps['tone']> = {
   registration: 'neutral',
@@ -55,6 +86,7 @@ const EMPTY: CandidateFilters = {
   gender: 'all',
   religion: 'all',
   medicalStatus: 'all',
+  cocStatus: 'all',
   archived: false,
   page: 1,
 };
@@ -242,6 +274,20 @@ export function CandidateDirectory({ archived = false }: { archived?: boolean })
             ))}
           </Select>
 
+          <Select
+            className="w-36"
+            value={filters.cocStatus}
+            onChange={(event) => set('cocStatus', event.target.value)}
+            aria-label="Filter by COC status"
+          >
+            <option value="all">COC status</option>
+            {['pending', 'issued', 'expired'].map((value) => (
+              <option key={value} value={value}>
+                {value[0]!.toUpperCase() + value.slice(1)}
+              </option>
+            ))}
+          </Select>
+
           <Button variant="ghost" onClick={() => setFilters({ ...EMPTY, archived })}>
             Clear
           </Button>
@@ -257,6 +303,7 @@ export function CandidateDirectory({ archived = false }: { archived?: boolean })
               <TH>Labour ID</TH>
               <TH>Stage</TH>
               <TH>Medical</TH>
+              <TH>COC</TH>
               <TH>Visa</TH>
               <TH>Office / agent</TH>
               <TH className="text-end">Actions</TH>
@@ -265,13 +312,13 @@ export function CandidateDirectory({ archived = false }: { archived?: boolean })
 
           <TBody>
             {isLoading && (
-              <EmptyRow colSpan={8}>
+              <EmptyRow colSpan={9}>
                 <Loader2 className="mx-auto size-5 animate-spin" />
               </EmptyRow>
             )}
 
             {!isLoading && !data?.items.length && (
-              <EmptyRow colSpan={8}>
+              <EmptyRow colSpan={9}>
                 {archived ? (
                   'Nothing has been archived.'
                 ) : (
@@ -304,6 +351,9 @@ export function CandidateDirectory({ archived = false }: { archived?: boolean })
                   <Badge tone={MEDICAL_TONE[candidate.medicalStatus] ?? 'neutral'}>
                     {candidate.medicalStatus}
                   </Badge>
+                </TD>
+                <TD>
+                  <CocBadge candidate={candidate} />
                 </TD>
                 <TD>
                   {candidate.visaNumber ? (
