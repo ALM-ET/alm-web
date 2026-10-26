@@ -25,6 +25,8 @@ import {
   TicketsQueue,
 } from '@/routes/pipeline/QueueScreen';
 import { Agents } from '@/routes/partners/Agents';
+import { TicketPayments } from '@/routes/deployment/TicketPayments';
+import { Complaints } from '@/routes/Complaints';
 import { useAuth } from './auth';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -201,6 +203,22 @@ export function AppRouter() {
           element={
             <RequirePermission permission="tickets:view">
               <IssuedTicketsQueue />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="deployment/payments"
+          element={
+            <RequirePermission permission="tickets:view">
+              <TicketPayments />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="complaints"
+          element={
+            <RequirePermission permission="candidates:view">
+              <Complaints />
             </RequirePermission>
           }
         />

@@ -53,6 +53,13 @@ const STAGE_LINK: Record<string, string> = {
   deployed: '/deployment/departed',
 };
 
+const MEDICAL_WINDOWS = [
+  { key: 'expired', label: 'Already expired', tone: 'text-destructive' },
+  { key: '30', label: 'Within 30 days', tone: 'text-destructive' },
+  { key: '60', label: 'In 30–60 days', tone: 'text-warning' },
+  { key: '90', label: 'In 60–90 days', tone: '' },
+] as const;
+
 function relative(iso: string): string {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (minutes < 1) return 'Just now';
@@ -253,6 +260,36 @@ export function Dashboard() {
                 </Link>
               );
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2">
+            <ShieldAlert className="size-5 text-warning" />
+            {t('dashboard.medical_expiry', 'Medical expiry')}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {t('dashboard.medical_expiry_hint', 'Candidates still to travel, by when their medical runs out.')}
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-px overflow-hidden rounded-lg bg-border grid-cols-2 lg:grid-cols-4">
+            {MEDICAL_WINDOWS.map((window) => (
+              <Link
+                key={window.key}
+                to={`/candidates?medicalExpiry=${window.key}`}
+                className="flex flex-col gap-1 bg-card p-4 transition-colors hover:bg-muted/50"
+              >
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t(`dashboard.medical_${window.key}`, window.label)}
+                </span>
+                <span className={`text-2xl font-bold tabular-nums ${data?.medicalExpiry[window.key] ? window.tone : ''}`}>
+                  {data?.medicalExpiry[window.key] ?? 0}
+                </span>
+              </Link>
+            ))}
           </div>
         </CardContent>
       </Card>
