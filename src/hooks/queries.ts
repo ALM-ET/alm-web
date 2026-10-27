@@ -281,6 +281,7 @@ export interface CandidateDetail extends CandidateRow {
   sponsorPhone: string | null;
   sponsorAddress: string | null;
   visaType: string | null;
+  departureDate: string | null;
   sponsorArabicName: string | null;
   sponsorNationalId: string | null;
   wakalaNumber: string | null;

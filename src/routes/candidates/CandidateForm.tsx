@@ -4,6 +4,8 @@ import {
   AlertTriangle,
   ArrowLeft,
   Award,
+  Check,
+  Plug,
   Briefcase,
   ClipboardList,
   ClipboardPaste,
@@ -33,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { sendToExtension } from '@/lib/extension';
 import { MUSANED_FIELDS, parseMusaned, type MusanedField } from '@/lib/musaned';
 import { api } from '@/lib/api';
 import { useAuth } from '@/app/auth';
@@ -260,6 +263,25 @@ export function CandidateForm() {
 
   const { isFlagEnabled, can } = useAuth();
   const [downloadingCv, setDownloadingCv] = useState(false);
+  const [extensionState, setExtensionState] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+  /** Sends the saved record, like the CV: unsaved edits travel once saved. */
+  const sendCandidateToExtension = async () => {
+    if (!candidate) return;
+    setExtensionState('sending');
+    const outcome = await sendToExtension(candidate);
+    if (outcome === 'stored') {
+      setExtensionState('sent');
+      setTimeout(() => setExtensionState('idle'), 3000);
+      return;
+    }
+    setExtensionState('idle');
+    toast.error(
+      outcome === 'missing'
+        ? 'The A-LMIS Auto-Fill extension is not installed or not enabled in this browser.'
+        : 'The extension could not store this candidate. Try again.',
+    );
+  };
 
   /** The saved record, not the form: unsaved edits are not on the CV until saved. */
   const downloadCv = async () => {
@@ -487,8 +509,21 @@ export function CandidateForm() {
           </h1>
           {candidate?.archivedAt && <Badge tone="neutral">Archived</Badge>}
           {isEdit && candidate && <Badge tone="primary">{candidate.stage}</Badge>}
+          {isEdit && candidate && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={`ms-auto ${extensionState === 'sent' ? 'border-success text-success' : ''}`}
+              onClick={sendCandidateToExtension}
+              disabled={extensionState === 'sending'}
+            >
+              {extensionState === 'sending' ? <Loader2 className="animate-spin" /> : extensionState === 'sent' ? <Check /> : <Plug />}
+              {extensionState === 'sent' ? 'Sent!' : 'Send to Extension'}
+            </Button>
+          )}
           {isEdit && candidate && can('cv:view') && (
-            <Button type="button" variant="outline" size="sm" className="ms-auto" onClick={downloadCv} disabled={downloadingCv}>
+            <Button type="button" variant="outline" size="sm" onClick={downloadCv} disabled={downloadingCv}>
               {downloadingCv ? <Loader2 className="animate-spin" /> : <Download />}
               Download CV
             </Button>
