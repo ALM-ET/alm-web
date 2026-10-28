@@ -29,6 +29,7 @@ type Values = Record<string, string>;
 
 const BLANK: Values = {
   fullName: '',
+  fullNameAmharic: '',
   passportNumber: '',
   postAppliedFor: '',
   monthlySalary: '',
@@ -187,6 +188,12 @@ export function CvBuilder() {
                 'fullName',
                 t('cv.full_name', 'Full name (matching passport)'),
                 <Input id="fullName" value={values.fullName} onChange={set('fullName')} required />,
+                true,
+              )}
+              {field(
+                'fullNameAmharic',
+                t('cv.full_name_amharic', 'Full name (Amharic)'),
+                <Input id="fullNameAmharic" lang="am" value={values.fullNameAmharic} onChange={set('fullNameAmharic')} placeholder="ለምሳሌ አበባ ተስፋዬ ማሞ" />,
                 true,
               )}
               {field(
