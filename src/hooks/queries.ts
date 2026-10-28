@@ -211,6 +211,8 @@ export function useAuditEntityTypes() {
 
 /* ------------------------------------------------------------- recruitment */
 
+export type CocStatus = 'pending' | 'issued' | 'expired';
+
 export interface CandidateRow {
   id: string;
   fullName: string;
@@ -221,6 +223,10 @@ export interface CandidateRow {
   visaNumber: string | null;
   visaDate: string | null;
   medicalStatus: string;
+  /** Already reads `expired` once an issued certificate is past its validity. */
+  cocStatus: CocStatus;
+  cocCertifiedDate: string | null;
+  cocExpiryDate: string | null;
   stage: string;
   destinationCountry: string | null;
   gender: string | null;
@@ -258,8 +264,11 @@ export interface CandidateDetail extends CandidateRow {
   arabicLevel: string | null;
   workedAbroad: boolean;
   skillsNotes: string | null;
+  skills: string[];
+  numberOfChildren: number | null;
   postAppliedFor: string | null;
   medicalIssueDate: string | null;
+  medicalPlace: string | null;
   monthlySalary: string | null;
   contractPeriod: string | null;
   officeId: string | null;
@@ -268,6 +277,26 @@ export interface CandidateDetail extends CandidateRow {
   sponsorRef: string | null;
   sponsorPhone: string | null;
   sponsorAddress: string | null;
+  sponsorArabicName: string | null;
+  sponsorNationalId: string | null;
+  wakalaNumber: string | null;
+  enjazNumber: string | null;
+  stickerVisaNumber: string | null;
+  biometricId: string | null;
+  cocType: string | null;
+  cocCenterName: string | null;
+  cocCertificateNumber: string | null;
+  fullNameAmharic: string | null;
+  relativeName: string | null;
+  relativePhone: string | null;
+  relativeKinship: string | null;
+  relativeGender: string | null;
+  relativeDateOfBirth: string | null;
+  relativeRegion: string | null;
+  relativeCity: string | null;
+  relativeSubcity: string | null;
+  relativeWereda: string | null;
+  relativeHouseNumber: string | null;
   documents: CandidateDocument[];
 }
 
@@ -278,6 +307,7 @@ export interface CandidateFilters {
   gender: string;
   religion: string;
   medicalStatus: string;
+  cocStatus: string;
   archived: boolean;
   page: number;
 }
@@ -318,6 +348,7 @@ export function candidateQuery(filters: CandidateFilters) {
     ...(filters.gender !== 'all' ? { gender: filters.gender } : {}),
     ...(filters.religion !== 'all' ? { religion: filters.religion } : {}),
     ...(filters.medicalStatus !== 'all' ? { medicalStatus: filters.medicalStatus } : {}),
+    ...(filters.cocStatus !== 'all' ? { cocStatus: filters.cocStatus } : {}),
     ...(filters.archived ? { archived: 'true' } : {}),
     page: filters.page,
   };

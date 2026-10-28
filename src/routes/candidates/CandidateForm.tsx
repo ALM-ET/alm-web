@@ -3,14 +3,17 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
+  Award,
   Briefcase,
   ClipboardList,
+  Download,
   FileText,
   Loader2,
   Paperclip,
   Trash2,
   Upload,
   UserRound,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '@alm/sdk';
@@ -35,10 +38,11 @@ import {
   useUploadDocument,
 } from '@/hooks/queries';
 
-type Values = Record<string, string | boolean>;
+type Values = Record<string, string | boolean | string[]>;
 
 const BLANK: Values = {
   fullName: '',
+  fullNameAmharic: '',
   passportNumber: '',
   passportIssueDate: '',
   passportExpiryDate: '',
@@ -51,18 +55,21 @@ const BLANK: Values = {
   religion: '',
   weightKg: '',
   heightCm: '',
+  numberOfChildren: '',
   currentOccupation: '',
   educationLevel: '',
   englishLevel: '',
   arabicLevel: '',
   workedAbroad: false,
   skillsNotes: '',
+  skills: [],
   postAppliedFor: '',
   applicationId: '',
   labourId: '',
   selectionStatus: 'Pending',
   medicalStatus: 'pending',
   medicalIssueDate: '',
+  medicalPlace: '',
   visaNumber: '',
   visaDate: '',
   destinationCountry: '',
@@ -74,7 +81,65 @@ const BLANK: Values = {
   sponsorRef: '',
   sponsorPhone: '',
   sponsorAddress: '',
+  sponsorArabicName: '',
+  sponsorNationalId: '',
+  wakalaNumber: '',
+  enjazNumber: '',
+  stickerVisaNumber: '',
+  biometricId: '',
+  cocType: '',
+  cocCenterName: '',
+  cocCertificateNumber: '',
+  cocCertifiedDate: '',
+  cocStatus: 'pending',
+  relativeName: '',
+  relativePhone: '',
+  relativeKinship: '',
+  relativeGender: '',
+  relativeDateOfBirth: '',
+  relativeRegion: '',
+  relativeCity: '',
+  relativeSubcity: '',
+  relativeWereda: '',
+  relativeHouseNumber: '',
 };
+
+const KINSHIPS = ['Father', 'Mother', 'Husband', 'Wife', 'Brother', 'Sister', 'Son', 'Daughter', 'Uncle', 'Aunt', 'Cousin'];
+
+const REGIONS = [
+  'Addis Ababa',
+  'Afar',
+  'Amhara',
+  'Benishangul-Gumuz',
+  'Central Ethiopia',
+  'Dire Dawa',
+  'Gambela',
+  'Harari',
+  'Oromia',
+  'Sidama',
+  'Somali',
+  'South Ethiopia',
+  'South West Ethiopia',
+  'Tigray',
+];
+
+const SKILLS = [
+  { value: 'cleaning', label: 'Cleaning' },
+  { value: 'washing', label: 'Washing' },
+  { value: 'ironing', label: 'Ironing' },
+  { value: 'cooking', label: 'Cooking' },
+  { value: 'arabic_cooking', label: 'Arabic cooking' },
+  { value: 'sewing', label: 'Sewing' },
+  { value: 'babysitting', label: 'Babysitting' },
+  { value: 'child_care', label: 'Child care' },
+];
+
+const COC_TYPES = [
+  { value: 'federal', label: 'Federal' },
+  { value: 'oromia', label: 'Oromia' },
+  { value: 'amhara', label: 'Amhara' },
+  { value: 'snnp', label: 'SNNP' },
+];
 
 const DOCUMENT_KINDS = [
   { value: 'passport_scan', label: 'Passport scan' },
@@ -88,6 +153,16 @@ const DOCUMENT_KINDS = [
 /** ISO timestamp to the `yyyy-mm-dd` a date input expects. */
 function toDateInput(value: string | null): string {
   return value ? value.slice(0, 10) : '';
+}
+
+/** Mirrors the API, which treats a certificate as valid for 90 days. */
+const COC_VALIDITY_DAYS = 90;
+
+function cocExpiryHint(certifiedDate: string): string | undefined {
+  if (!certifiedDate) return undefined;
+  const expiry = new Date(new Date(certifiedDate).getTime() + COC_VALIDITY_DAYS * 86_400_000);
+  if (Number.isNaN(expiry.getTime())) return undefined;
+  return `Valid until ${expiry.toISOString().slice(0, 10)}`;
 }
 
 function ageFrom(dateOfBirth: string): string {
@@ -171,7 +246,27 @@ export function CandidateForm() {
   const location = useLocation();
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const { isFlagEnabled } = useAuth();
+  const { isFlagEnabled, can } = useAuth();
+  const [downloadingCv, setDownloadingCv] = useState(false);
+
+  /** The saved record, not the form: unsaved edits are not on the CV until saved. */
+  const downloadCv = async () => {
+    if (!candidate) return;
+    setDownloadingCv(true);
+    try {
+      const blob = await api.getBlob(`/api/v1/cv/candidates/${candidate.id}.pdf`);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `CV-${candidate.fullName.replace(/[^a-zA-Z0-9]+/g, '-').toUpperCase()}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : 'Could not build the CV. Try again.');
+    } finally {
+      setDownloadingCv(false);
+    }
+  };
   const { data: candidate, isLoading } = useCandidate(id);
   const { data: offices } = useOffices();
   const { data: agents } = useAgents();
@@ -217,8 +312,8 @@ export function CandidateForm() {
       const value = (candidate as unknown as Record<string, unknown>)[key];
       if (value === null || value === undefined) continue;
       next[key] =
-        typeof value === 'boolean'
-          ? value
+        typeof value === 'boolean' || Array.isArray(value)
+          ? (value as boolean | string[])
           : key.toLowerCase().includes('date') || key === 'dateOfBirth'
             ? toDateInput(String(value))
             : String(value);
@@ -347,6 +442,12 @@ export function CandidateForm() {
           </h1>
           {candidate?.archivedAt && <Badge tone="neutral">Archived</Badge>}
           {isEdit && candidate && <Badge tone="primary">{candidate.stage}</Badge>}
+          {isEdit && candidate && can('cv:view') && (
+            <Button type="button" variant="outline" size="sm" className="ms-auto" onClick={downloadCv} disabled={downloadingCv}>
+              {downloadingCv ? <Loader2 className="animate-spin" /> : <Download />}
+              Download CV
+            </Button>
+          )}
         </div>
       </div>
 
@@ -370,6 +471,10 @@ export function CandidateForm() {
             placeholder="e.g. ABEBA TESFAYE MAMO"
             aria-invalid={Boolean(fieldErrors.fullName)}
           />
+        </Field>
+
+        <Field id="fullNameAmharic" label="Full name (Amharic)">
+          <Input id="fullNameAmharic" lang="am" value={String(values.fullNameAmharic)} onChange={set('fullNameAmharic')} placeholder="ለምሳሌ አበባ ተስፋዬ ማሞ" />
         </Field>
 
         <Field id="passportNumber" label="Passport number *" error={fieldErrors.passportNumber} flagged={unconfirmed.passportNumber}>
@@ -451,6 +556,10 @@ export function CandidateForm() {
             <Input id="heightCm" type="number" value={String(values.heightCm)} onChange={set('heightCm')} placeholder="160" />
           </Field>
         </div>
+
+        <Field id="numberOfChildren" label="Number of children" error={fieldErrors.numberOfChildren}>
+          <Input id="numberOfChildren" type="number" min={0} value={String(values.numberOfChildren)} onChange={set('numberOfChildren')} placeholder="0" />
+        </Field>
       </Section>
 
       <Section icon={Briefcase} title="Qualifications, languages & experience">
@@ -511,6 +620,39 @@ export function CandidateForm() {
           </div>
         </div>
 
+        <div className="space-y-2 sm:col-span-2">
+          <Label>Skills</Label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {SKILLS.map((skill) => {
+              const selected = (values.skills as string[]).includes(skill.value);
+              return (
+                <label
+                  key={skill.value}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                >
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={selected}
+                    onChange={() =>
+                      setValues((current) => {
+                        const skills = current.skills as string[];
+                        return {
+                          ...current,
+                          skills: selected
+                            ? skills.filter((value) => value !== skill.value)
+                            : [...skills, skill.value],
+                        };
+                      })
+                    }
+                  />
+                  {skill.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         <Field id="skillsNotes" label="Skills, experience & notes" wide>
           <Textarea
             id="skillsNotes"
@@ -557,6 +699,10 @@ export function CandidateForm() {
 
         <Field id="medicalIssueDate" label="Medical issue date">
           <Input id="medicalIssueDate" type="date" value={String(values.medicalIssueDate)} onChange={set('medicalIssueDate')} />
+        </Field>
+
+        <Field id="medicalPlace" label="Medical exam place">
+          <Input id="medicalPlace" value={String(values.medicalPlace)} onChange={set('medicalPlace')} placeholder="e.g. Wudassie Diagnostic Center" />
         </Field>
 
         <Field id="visaNumber" label="Visa number">
@@ -615,6 +761,114 @@ export function CandidateForm() {
         <Field id="sponsorAddress" label="Sponsor address">
           <Input id="sponsorAddress" value={String(values.sponsorAddress)} onChange={set('sponsorAddress')} placeholder="e.g. Riyadh, Olaya District" />
         </Field>
+        <Field id="sponsorArabicName" label="Sponsor name (Arabic)">
+          <Input id="sponsorArabicName" dir="rtl" lang="ar" value={String(values.sponsorArabicName)} onChange={set('sponsorArabicName')} placeholder="محمد الحربي" />
+        </Field>
+        <Field id="sponsorNationalId" label="Sponsor national ID / iqama">
+          <Input id="sponsorNationalId" inputMode="numeric" value={String(values.sponsorNationalId)} onChange={set('sponsorNationalId')} placeholder="e.g. 1012345678" />
+        </Field>
+      </Section>
+
+      <Section icon={ClipboardList} title="Saudi visa processing">
+        <Field id="wakalaNumber" label="Wakala no.">
+          <Input id="wakalaNumber" value={String(values.wakalaNumber)} onChange={set('wakalaNumber')} />
+        </Field>
+        <Field id="enjazNumber" label="Enjaz no.">
+          <Input id="enjazNumber" value={String(values.enjazNumber)} onChange={set('enjazNumber')} />
+        </Field>
+        <Field id="stickerVisaNumber" label="Sticker visa no.">
+          <Input id="stickerVisaNumber" value={String(values.stickerVisaNumber)} onChange={set('stickerVisaNumber')} />
+        </Field>
+        <Field id="biometricId" label="Biometric (fingerprint) ID">
+          <Input id="biometricId" value={String(values.biometricId)} onChange={set('biometricId')} />
+        </Field>
+      </Section>
+
+      <Section icon={Award} title="Certificate of competence (COC)">
+        <Field id="cocStatus" label="COC status">
+          <Select id="cocStatus" value={String(values.cocStatus)} onChange={set('cocStatus')}>
+            {['pending', 'issued', 'expired'].map((value) => (
+              <option key={value} value={value}>
+                {value[0]!.toUpperCase() + value.slice(1)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field id="cocType" label="Issued by">
+          <Select id="cocType" value={String(values.cocType)} onChange={set('cocType')}>
+            <option value="">— Select —</option>
+            {COC_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field id="cocCenterName" label="Assessment center">
+          <Input id="cocCenterName" value={String(values.cocCenterName)} onChange={set('cocCenterName')} />
+        </Field>
+        <Field id="cocCertificateNumber" label="Certificate no.">
+          <Input id="cocCertificateNumber" value={String(values.cocCertificateNumber)} onChange={set('cocCertificateNumber')} />
+        </Field>
+        <Field
+          id="cocCertifiedDate"
+          label="Certified date"
+          error={fieldErrors.cocCertifiedDate}
+          hint={cocExpiryHint(String(values.cocCertifiedDate))}
+        >
+          <Input id="cocCertifiedDate" type="date" value={String(values.cocCertifiedDate)} onChange={set('cocCertifiedDate')} />
+        </Field>
+      </Section>
+
+      <Section icon={Users} title="Relative / emergency contact">
+        <Field id="relativeName" label="Relative name">
+          <Input id="relativeName" value={String(values.relativeName)} onChange={set('relativeName')} />
+        </Field>
+        <Field id="relativeKinship" label="Kinship">
+          <Input id="relativeKinship" list="kinships" value={String(values.relativeKinship)} onChange={set('relativeKinship')} placeholder="e.g. Mother" />
+          <datalist id="kinships">
+            {KINSHIPS.map((kinship) => (
+              <option key={kinship} value={kinship} />
+            ))}
+          </datalist>
+        </Field>
+        <Field id="relativePhone" label="Phone">
+          <Input id="relativePhone" type="tel" value={String(values.relativePhone)} onChange={set('relativePhone')} placeholder="+2519…" />
+        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field id="relativeGender" label="Gender">
+            <Select id="relativeGender" value={String(values.relativeGender)} onChange={set('relativeGender')}>
+              <option value="">— Select —</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </Select>
+          </Field>
+          <Field id="relativeDateOfBirth" label="Date of birth" error={fieldErrors.relativeDateOfBirth}>
+            <Input id="relativeDateOfBirth" type="date" value={String(values.relativeDateOfBirth)} onChange={set('relativeDateOfBirth')} />
+          </Field>
+        </div>
+        <Field id="relativeRegion" label="Region">
+          <Input id="relativeRegion" list="regions" value={String(values.relativeRegion)} onChange={set('relativeRegion')} />
+          <datalist id="regions">
+            {REGIONS.map((region) => (
+              <option key={region} value={region} />
+            ))}
+          </datalist>
+        </Field>
+        <Field id="relativeCity" label="City / town">
+          <Input id="relativeCity" value={String(values.relativeCity)} onChange={set('relativeCity')} />
+        </Field>
+        <Field id="relativeSubcity" label="Subcity / zone">
+          <Input id="relativeSubcity" value={String(values.relativeSubcity)} onChange={set('relativeSubcity')} />
+        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field id="relativeWereda" label="Wereda">
+            <Input id="relativeWereda" value={String(values.relativeWereda)} onChange={set('relativeWereda')} />
+          </Field>
+          <Field id="relativeHouseNumber" label="House no.">
+            <Input id="relativeHouseNumber" value={String(values.relativeHouseNumber)} onChange={set('relativeHouseNumber')} />
+          </Field>
+        </div>
       </Section>
 
       {isEdit && (
