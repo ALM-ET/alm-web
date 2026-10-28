@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Archive,
   ArchiveRestore,
   Download,
+  LayoutGrid,
+  List,
   Loader2,
   Pencil,
   ShieldCheck,
@@ -15,11 +17,13 @@ import { ApiError } from '@alm/sdk';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { EmptyRow, Table, TableWrapper, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { useAuth } from '@/app/auth';
 import { api } from '@/lib/api';
+import { initials } from '@/lib/utils';
 import {
   candidateQuery,
   useAgents,
@@ -87,16 +91,39 @@ const EMPTY: CandidateFilters = {
   religion: 'all',
   medicalStatus: 'all',
   cocStatus: 'all',
+  medicalExpiry: 'all',
   archived: false,
   page: 1,
 };
 
 export function CandidateDirectory({ archived = false }: { archived?: boolean }) {
   const { can } = useAuth();
-  const [filters, setFilters] = useState<CandidateFilters>({ ...EMPTY, archived });
+  // The dashboard's medical expiry tiles link here with the window already set.
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<CandidateFilters>({
+    ...EMPTY,
+    archived,
+    medicalExpiry: searchParams.get('medicalExpiry') ?? 'all',
+  });
   const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading } = useCandidates(filters);
+  const [view, setView] = useState<'table' | 'gallery'>(() => {
+    try {
+      return localStorage.getItem('candidates.view') === 'gallery' ? 'gallery' : 'table';
+    } catch {
+      return 'table';
+    }
+  });
+  const chooseView = (next: 'table' | 'gallery') => {
+    setView(next);
+    try {
+      localStorage.setItem('candidates.view', next);
+    } catch {
+      // A remembered view is a convenience; a blocked store just forgets it.
+    }
+  };
+
+  const { data, isLoading } = useCandidates({ ...filters, withPhotos: view === 'gallery' });
   const { data: summary } = useCandidateSummary();
   const { data: offices } = useOffices();
   const { data: agents } = useAgents();
@@ -118,6 +145,42 @@ export function CandidateDirectory({ archived = false }: { archived?: boolean })
           toast.error(caught instanceof ApiError ? caught.message : 'Could not update the record'),
       },
     );
+  };
+
+  // Kept across pages, so a batch for Tasheer can be gathered from several.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const pageIds = data?.items.map((candidate) => candidate.id) ?? [];
+  const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const togglePage = () =>
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const id of pageIds) {
+        if (allOnPage) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+
+  const exportTasheer = async () => {
+    try {
+      const csv = await api.getText(`/api/v1/candidates/export/tasheer?ids=${[...selected].join(',')}`);
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tasheer-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${selected.size} candidate${selected.size === 1 ? '' : 's'} exported for Tasheer`);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : 'Could not export for Tasheer');
+    }
   };
 
   const exportCsv = async () => {
@@ -165,6 +228,25 @@ export function CandidateDirectory({ archived = false }: { archived?: boolean })
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-md border p-0.5" role="group" aria-label="View">
+            <Button size="sm" variant={view === 'table' ? 'default' : 'ghost'} onClick={() => chooseView('table')} aria-pressed={view === 'table'} aria-label="Table view">
+              <List />
+            </Button>
+            <Button size="sm" variant={view === 'gallery' ? 'default' : 'ghost'} onClick={() => chooseView('gallery')} aria-pressed={view === 'gallery'} aria-label="Gallery view">
+              <LayoutGrid />
+            </Button>
+          </div>
+          {selected.size > 0 && (
+            <>
+              <Button variant="outline" onClick={() => void exportTasheer()}>
+                <Download />
+                Tasheer export ({selected.size})
+              </Button>
+              <Button variant="ghost" onClick={() => setSelected(new Set())}>
+                Clear selection
+              </Button>
+            </>
+          )}
           <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>
             {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download />}
             Export
@@ -288,119 +370,174 @@ export function CandidateDirectory({ archived = false }: { archived?: boolean })
             ))}
           </Select>
 
+          <Select
+            className="w-44"
+            value={filters.medicalExpiry}
+            onChange={(event) => set('medicalExpiry', event.target.value)}
+            aria-label="Filter by medical expiry"
+          >
+            <option value="all">Medical expiry</option>
+            <option value="expired">Already expired</option>
+            <option value="30">Within 30 days</option>
+            <option value="60">In 30–60 days</option>
+            <option value="90">In 60–90 days</option>
+          </Select>
+
           <Button variant="ghost" onClick={() => setFilters({ ...EMPTY, archived })}>
             Clear
           </Button>
         </CardContent>
       </Card>
 
-      <TableWrapper>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Candidate</TH>
-              <TH>Passport no.</TH>
-              <TH>Labour ID</TH>
-              <TH>Stage</TH>
-              <TH>Medical</TH>
-              <TH>COC</TH>
-              <TH>Visa</TH>
-              <TH>Office / agent</TH>
-              <TH className="text-end">Actions</TH>
-            </TR>
-          </THead>
-
-          <TBody>
-            {isLoading && (
-              <EmptyRow colSpan={9}>
-                <Loader2 className="mx-auto size-5 animate-spin" />
-              </EmptyRow>
-            )}
-
-            {!isLoading && !data?.items.length && (
-              <EmptyRow colSpan={9}>
-                {archived ? (
-                  'Nothing has been archived.'
+      {view === 'gallery' ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {isLoading && <Loader2 className="col-span-full mx-auto size-5 animate-spin" />}
+          {!isLoading && !data?.items.length && (
+            <p className="col-span-full py-10 text-center text-muted-foreground">No candidates match these filters.</p>
+          )}
+          {data?.items.map((candidate) => (
+            <Link
+              key={candidate.id}
+              to={`/candidates/${candidate.id}`}
+              className="group overflow-hidden rounded-lg border bg-card transition-colors hover:border-primary"
+            >
+              <div className="flex aspect-[4/5] items-center justify-center bg-muted">
+                {candidate.photoUrl ? (
+                  <img src={candidate.photoUrl} alt="" loading="lazy" className="size-full object-cover" />
                 ) : (
-                  <span className="flex flex-col items-center gap-3">
-                    <Users className="size-8 text-muted-foreground/60" />
-                    No candidates match these filters.
-                  </span>
+                  <span className="text-3xl font-semibold text-muted-foreground">{initials(candidate.fullName)}</span>
                 )}
-              </EmptyRow>
-            )}
-
-            {data?.items.map((candidate) => (
-              <TR key={candidate.id}>
-                <TD>
-                  <Link to={`/candidates/${candidate.id}`} className="font-medium hover:underline">
-                    {candidate.fullName}
-                  </Link>
-                  {candidate.destinationCountry && (
-                    <span className="block text-xs text-muted-foreground">
-                      → {candidate.destinationCountry}
-                    </span>
-                  )}
-                </TD>
-                <TD className="font-mono text-xs">{candidate.passportNumber}</TD>
-                <TD className="font-mono text-xs text-muted-foreground">{candidate.labourId}</TD>
-                <TD>
+              </div>
+              <div className="space-y-1.5 p-3">
+                <p className="truncate font-medium group-hover:underline">{candidate.fullName}</p>
+                <p className="font-mono text-xs text-muted-foreground">{candidate.passportNumber}</p>
+                <div className="flex flex-wrap gap-1">
                   <Badge tone={STAGE_TONE[candidate.stage] ?? 'neutral'}>{candidate.stage}</Badge>
-                </TD>
-                <TD>
-                  <Badge tone={MEDICAL_TONE[candidate.medicalStatus] ?? 'neutral'}>
-                    {candidate.medicalStatus}
-                  </Badge>
-                </TD>
-                <TD>
-                  <CocBadge candidate={candidate} />
-                </TD>
-                <TD>
-                  {candidate.visaNumber ? (
-                    <span className="inline-flex items-center gap-1.5 text-sm">
-                      <ShieldCheck className="size-4 text-success" />
-                      <span className="font-mono text-xs">{candidate.visaNumber}</span>
-                    </span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">—</span>
-                  )}
-                </TD>
-                <TD className="text-sm text-muted-foreground">
-                  {candidate.office?.name ?? '—'}
-                  {candidate.agent && (
-                    <span className="block text-xs">via {candidate.agent.fullName}</span>
-                  )}
-                </TD>
-                <TD>
-                  <div className="flex justify-end gap-2">
-                    {canEdit && (
-                      <Button size="sm" variant="outline" asChild>
-                        <Link to={`/candidates/${candidate.id}`}>
-                          <Pencil />
-                          Open
-                        </Link>
-                      </Button>
-                    )}
-                    {canEdit && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={archiveCandidate.isPending}
-                        onClick={() =>
-                          toggleArchive(candidate.id, candidate.fullName, Boolean(candidate.archivedAt))
-                        }
-                      >
-                        {candidate.archivedAt ? <ArchiveRestore /> : <Archive />}
-                        {candidate.archivedAt ? 'Restore' : 'Archive'}
-                      </Button>
-                    )}
-                  </div>
-                </TD>
+                  <Badge tone={MEDICAL_TONE[candidate.medicalStatus] ?? 'neutral'}>{candidate.medicalStatus}</Badge>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <TableWrapper>
+          <Table>
+            <THead>
+              <TR>
+                <TH className="w-10">
+                  <Checkbox checked={allOnPage} onCheckedChange={togglePage} aria-label="Select every candidate on this page" />
+                </TH>
+                <TH>Candidate</TH>
+                <TH>Passport no.</TH>
+                <TH>Labour ID</TH>
+                <TH>Stage</TH>
+                <TH>Medical</TH>
+                <TH>COC</TH>
+                <TH>Visa</TH>
+                <TH>Office / agent</TH>
+                <TH className="text-end">Actions</TH>
               </TR>
-            ))}
-          </TBody>
-        </Table>
-      </TableWrapper>
+            </THead>
+
+            <TBody>
+              {isLoading && (
+                <EmptyRow colSpan={10}>
+                  <Loader2 className="mx-auto size-5 animate-spin" />
+                </EmptyRow>
+              )}
+
+              {!isLoading && !data?.items.length && (
+                <EmptyRow colSpan={10}>
+                  {archived ? (
+                    'Nothing has been archived.'
+                  ) : (
+                    <span className="flex flex-col items-center gap-3">
+                      <Users className="size-8 text-muted-foreground/60" />
+                      No candidates match these filters.
+                    </span>
+                  )}
+                </EmptyRow>
+              )}
+
+              {data?.items.map((candidate) => (
+                <TR key={candidate.id}>
+                  <TD>
+                    <Checkbox
+                      checked={selected.has(candidate.id)}
+                      onCheckedChange={() => toggle(candidate.id)}
+                      aria-label={`Select ${candidate.fullName}`}
+                    />
+                  </TD>
+                  <TD>
+                    <Link to={`/candidates/${candidate.id}`} className="font-medium hover:underline">
+                      {candidate.fullName}
+                    </Link>
+                    {candidate.destinationCountry && (
+                      <span className="block text-xs text-muted-foreground">
+                        → {candidate.destinationCountry}
+                      </span>
+                    )}
+                  </TD>
+                  <TD className="font-mono text-xs">{candidate.passportNumber}</TD>
+                  <TD className="font-mono text-xs text-muted-foreground">{candidate.labourId}</TD>
+                  <TD>
+                    <Badge tone={STAGE_TONE[candidate.stage] ?? 'neutral'}>{candidate.stage}</Badge>
+                  </TD>
+                  <TD>
+                    <Badge tone={MEDICAL_TONE[candidate.medicalStatus] ?? 'neutral'}>
+                      {candidate.medicalStatus}
+                    </Badge>
+                  </TD>
+                  <TD>
+                    <CocBadge candidate={candidate} />
+                  </TD>
+                  <TD>
+                    {candidate.visaNumber ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm">
+                        <ShieldCheck className="size-4 text-success" />
+                        <span className="font-mono text-xs">{candidate.visaNumber}</span>
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TD>
+                  <TD className="text-sm text-muted-foreground">
+                    {candidate.office?.name ?? '—'}
+                    {candidate.agent && (
+                      <span className="block text-xs">via {candidate.agent.fullName}</span>
+                    )}
+                  </TD>
+                  <TD>
+                    <div className="flex justify-end gap-2">
+                      {canEdit && (
+                        <Button size="sm" variant="outline" asChild>
+                          <Link to={`/candidates/${candidate.id}`}>
+                            <Pencil />
+                            Open
+                          </Link>
+                        </Button>
+                      )}
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={archiveCandidate.isPending}
+                          onClick={() =>
+                            toggleArchive(candidate.id, candidate.fullName, Boolean(candidate.archivedAt))
+                          }
+                        >
+                          {candidate.archivedAt ? <ArchiveRestore /> : <Archive />}
+                          {candidate.archivedAt ? 'Restore' : 'Archive'}
+                        </Button>
+                      )}
+                    </div>
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        </TableWrapper>
+      )}
 
       {data && data.total > data.pageSize && (
         <div className="flex items-center justify-between gap-4">

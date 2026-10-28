@@ -223,10 +223,13 @@ export interface CandidateRow {
   visaNumber: string | null;
   visaDate: string | null;
   medicalStatus: string;
+  medicalExpiryDate: string | null;
   /** Already reads `expired` once an issued certificate is past its validity. */
   cocStatus: CocStatus;
   cocCertifiedDate: string | null;
   cocExpiryDate: string | null;
+  /** Present only when the list was asked `withPhotos`. */
+  photoUrl?: string | null;
   stage: string;
   destinationCountry: string | null;
   gender: string | null;
@@ -277,6 +280,7 @@ export interface CandidateDetail extends CandidateRow {
   sponsorRef: string | null;
   sponsorPhone: string | null;
   sponsorAddress: string | null;
+  visaType: string | null;
   sponsorArabicName: string | null;
   sponsorNationalId: string | null;
   wakalaNumber: string | null;
@@ -308,7 +312,10 @@ export interface CandidateFilters {
   religion: string;
   medicalStatus: string;
   cocStatus: string;
+  medicalExpiry: string;
   archived: boolean;
+  /** Ask for each row's photo link; only the gallery needs them. */
+  withPhotos?: boolean;
   page: number;
 }
 
@@ -349,7 +356,9 @@ export function candidateQuery(filters: CandidateFilters) {
     ...(filters.religion !== 'all' ? { religion: filters.religion } : {}),
     ...(filters.medicalStatus !== 'all' ? { medicalStatus: filters.medicalStatus } : {}),
     ...(filters.cocStatus !== 'all' ? { cocStatus: filters.cocStatus } : {}),
+    ...(filters.medicalExpiry !== 'all' ? { medicalExpiry: filters.medicalExpiry } : {}),
     ...(filters.archived ? { archived: 'true' } : {}),
+    ...(filters.withPhotos ? { withPhotos: 'true' } : {}),
     page: filters.page,
   };
 }
@@ -701,6 +710,8 @@ export interface DashboardData {
     pendingApprovals: number;
   };
   funnel: { stage: string; label: string; description: string; count: number }[];
+  /** Candidates still to travel, by when their medical runs out. */
+  medicalExpiry: Record<'expired' | '30' | '60' | '90', number>;
   trend: { month: string; label: string; count: number }[];
   activity: {
     id: string;
@@ -717,4 +728,137 @@ export function useDashboard(range: string) {
     queryFn: () => api.get<DashboardData>('/api/v1/dashboard', { query: { range } }),
     placeholderData: (previous) => previous,
   });
+}
+
+/* ---------------------------------------------------------- ticket payments */
+
+export interface CandidateRef {
+  id: string;
+  fullName: string;
+  passportNumber: string;
+}
+
+export interface TicketPayment {
+  id: string;
+  candidateId: string;
+  paymentDate: string;
+  /** A decimal string; never parsed to a float for arithmetic. */
+  amount: string;
+  currency: string;
+  paymentMethod: 'cash' | 'bank_transfer' | 'cheque' | 'mobile_money';
+  ticketOffice: string | null;
+  referenceNumber: string | null;
+  accountNumber: string | null;
+  note: string | null;
+  createdAt: string;
+  candidate: CandidateRef;
+}
+
+export interface TicketPaymentPage {
+  items: TicketPayment[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  totals: { currency: string; amount: string }[];
+}
+
+export interface TicketPaymentFilters {
+  search: string;
+  from: string;
+  to: string;
+  page: number;
+}
+
+export function useTicketPayments(filters: TicketPaymentFilters) {
+  return useQuery({
+    queryKey: ['ticket-payments', filters],
+    queryFn: () =>
+      api.get<TicketPaymentPage>('/api/v1/ticket-payments', {
+        query: {
+          page: filters.page,
+          ...(filters.search ? { search: filters.search } : {}),
+          ...(filters.from ? { from: filters.from } : {}),
+          ...(filters.to ? { to: filters.to } : {}),
+        },
+      }),
+  });
+}
+
+export function useSaveTicketPayment() {
+  return usePartnerMutation(
+    'ticket-payments',
+    ({ id, ...body }: { id?: string } & Record<string, unknown>) =>
+      id
+        ? api.patch<TicketPayment>(`/api/v1/ticket-payments/${id}`, body)
+        : api.post<TicketPayment>('/api/v1/ticket-payments', body),
+  );
+}
+
+export function useDeleteTicketPayment() {
+  return usePartnerMutation('ticket-payments', (id: string) =>
+    api.delete<void>(`/api/v1/ticket-payments/${id}`),
+  );
+}
+
+/* --------------------------------------------------------------- complaints */
+
+export type ComplaintStatus = 'open' | 'resolved' | 'closed';
+
+export interface Complaint {
+  id: string;
+  candidateId: string;
+  complaintDate: string;
+  type: string;
+  description: string;
+  reportedBy: string | null;
+  status: ComplaintStatus;
+  resolution: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  candidate: CandidateRef & { destinationCountry: string | null; sponsorName: string | null };
+}
+
+export interface ComplaintPage {
+  items: Complaint[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  counts: Record<ComplaintStatus, number>;
+}
+
+export interface ComplaintFilters {
+  status: ComplaintStatus | 'all';
+  search: string;
+  page: number;
+}
+
+export function complaintQuery(filters: ComplaintFilters) {
+  return {
+    status: filters.status,
+    page: filters.page,
+    ...(filters.search ? { search: filters.search } : {}),
+  };
+}
+
+export function useComplaints(filters: ComplaintFilters) {
+  return useQuery({
+    queryKey: ['complaints', filters],
+    queryFn: () => api.get<ComplaintPage>('/api/v1/complaints', { query: complaintQuery(filters) }),
+  });
+}
+
+export function useSaveComplaint() {
+  return usePartnerMutation(
+    'complaints',
+    ({ id, ...body }: { id?: string } & Record<string, unknown>) =>
+      id
+        ? api.patch<Complaint>(`/api/v1/complaints/${id}`, body)
+        : api.post<Complaint>('/api/v1/complaints', body),
+  );
+}
+
+export function useDeleteComplaint() {
+  return usePartnerMutation('complaints', (id: string) => api.delete<void>(`/api/v1/complaints/${id}`));
 }

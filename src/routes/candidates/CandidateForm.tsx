@@ -6,6 +6,7 @@ import {
   Award,
   Briefcase,
   ClipboardList,
+  ClipboardPaste,
   Download,
   FileText,
   Loader2,
@@ -24,6 +25,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { MUSANED_FIELDS, parseMusaned, type MusanedField } from '@/lib/musaned';
 import { api } from '@/lib/api';
 import { useAuth } from '@/app/auth';
 import { PassportScan, type PassportScanResult } from '@/components/PassportScan';
@@ -69,8 +79,10 @@ const BLANK: Values = {
   selectionStatus: 'Pending',
   medicalStatus: 'pending',
   medicalIssueDate: '',
+  medicalExpiryDate: '',
   medicalPlace: '',
   visaNumber: '',
+  visaType: '',
   visaDate: '',
   destinationCountry: '',
   monthlySalary: '',
@@ -342,6 +354,39 @@ export function CandidateForm() {
     const { values: filled, flags } = fieldsFromScan(scan);
     setValues((current) => ({ ...current, ...filled }));
     setUnconfirmed(flags);
+  };
+
+  const [musanedOpen, setMusanedOpen] = useState(false);
+  const [musanedText, setMusanedText] = useState('');
+  const [musanedDraft, setMusanedDraft] = useState<Partial<Record<MusanedField, string>>>({});
+  const [musanedUnmatched, setMusanedUnmatched] = useState<string[]>([]);
+
+  /** A paste fills the six boxes; anything typed in them afterwards wins. */
+  const pasteMusaned = (text: string) => {
+    setMusanedText(text);
+    const { values: found, unmatched } = parseMusaned(text);
+    setMusanedDraft((current) => ({ ...current, ...found }));
+    setMusanedUnmatched(unmatched);
+  };
+
+  /** Fills what was entered and flags it, the same way a passport read is. */
+  const applyMusaned = () => {
+    const filled = Object.entries(musanedDraft).filter(([, value]) => value?.trim());
+    setValues((current) => ({ ...current, ...Object.fromEntries(filled) }));
+    setUnconfirmed((current) => ({
+      ...current,
+      ...Object.fromEntries(filled.map(([key]) => [key, 'Filled from Musaned. Confirm it.'])),
+    }));
+    if (musanedUnmatched.length) {
+      // Kept for whoever replaces the placeholder parser with one built from a
+      // real paste: these are the lines it did not understand.
+      console.info('[musaned] unrecognised lines', musanedUnmatched);
+    }
+    toast.success(`Filled ${filled.length} field${filled.length === 1 ? '' : 's'} from Musaned`);
+    setMusanedOpen(false);
+    setMusanedText('');
+    setMusanedDraft({});
+    setMusanedUnmatched([]);
   };
 
   const age = useMemo(() => ageFrom(String(values.dateOfBirth ?? '')), [values.dateOfBirth]);
@@ -701,15 +746,23 @@ export function CandidateForm() {
           <Input id="medicalIssueDate" type="date" value={String(values.medicalIssueDate)} onChange={set('medicalIssueDate')} />
         </Field>
 
+        <Field id="medicalExpiryDate" label="Medical expiry date" error={fieldErrors.medicalExpiryDate}>
+          <Input id="medicalExpiryDate" type="date" value={String(values.medicalExpiryDate)} onChange={set('medicalExpiryDate')} />
+        </Field>
+
         <Field id="medicalPlace" label="Medical exam place">
           <Input id="medicalPlace" value={String(values.medicalPlace)} onChange={set('medicalPlace')} placeholder="e.g. Wudassie Diagnostic Center" />
         </Field>
 
-        <Field id="visaNumber" label="Visa number">
+        <Field id="visaNumber" label="Visa number" flagged={unconfirmed.visaNumber}>
           <Input id="visaNumber" value={String(values.visaNumber)} onChange={set('visaNumber')} placeholder="Optional until issued" />
         </Field>
 
-        <Field id="visaDate" label="Visa date">
+        <Field id="visaType" label="Visa type" flagged={unconfirmed.visaType}>
+          <Input id="visaType" value={String(values.visaType)} onChange={set('visaType')} placeholder="e.g. Work" />
+        </Field>
+
+        <Field id="visaDate" label="Visa date" flagged={unconfirmed.visaDate}>
           <Input id="visaDate" type="date" value={String(values.visaDate)} onChange={set('visaDate')} />
         </Field>
 
@@ -748,23 +801,30 @@ export function CandidateForm() {
         </Field>
       </Section>
 
+      <div className="-mb-2 flex justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={() => setMusanedOpen(true)}>
+          <ClipboardPaste />
+          Paste from Musaned
+        </Button>
+      </div>
+
       <Section icon={FileText} title="Sponsor details">
-        <Field id="sponsorName" label="Sponsor name">
+        <Field id="sponsorName" label="Sponsor name" flagged={unconfirmed.sponsorName}>
           <Input id="sponsorName" value={String(values.sponsorName)} onChange={set('sponsorName')} placeholder="e.g. MOHAMMED AL-HARBI" />
         </Field>
-        <Field id="sponsorRef" label="Sponsor ID">
+        <Field id="sponsorRef" label="Sponsor ID" flagged={unconfirmed.sponsorRef}>
           <Input id="sponsorRef" value={String(values.sponsorRef)} onChange={set('sponsorRef')} placeholder="e.g. SP-99812" />
         </Field>
-        <Field id="sponsorPhone" label="Sponsor phone">
+        <Field id="sponsorPhone" label="Sponsor phone" flagged={unconfirmed.sponsorPhone}>
           <Input id="sponsorPhone" value={String(values.sponsorPhone)} onChange={set('sponsorPhone')} placeholder="+966501234567" />
         </Field>
-        <Field id="sponsorAddress" label="Sponsor address">
+        <Field id="sponsorAddress" label="Sponsor address" flagged={unconfirmed.sponsorAddress}>
           <Input id="sponsorAddress" value={String(values.sponsorAddress)} onChange={set('sponsorAddress')} placeholder="e.g. Riyadh, Olaya District" />
         </Field>
-        <Field id="sponsorArabicName" label="Sponsor name (Arabic)">
+        <Field id="sponsorArabicName" label="Sponsor name (Arabic)" flagged={unconfirmed.sponsorArabicName}>
           <Input id="sponsorArabicName" dir="rtl" lang="ar" value={String(values.sponsorArabicName)} onChange={set('sponsorArabicName')} placeholder="محمد الحربي" />
         </Field>
-        <Field id="sponsorNationalId" label="Sponsor national ID / iqama">
+        <Field id="sponsorNationalId" label="Sponsor national ID / iqama" flagged={unconfirmed.sponsorNationalId}>
           <Input id="sponsorNationalId" inputMode="numeric" value={String(values.sponsorNationalId)} onChange={set('sponsorNationalId')} placeholder="e.g. 1012345678" />
         </Field>
       </Section>
@@ -773,7 +833,7 @@ export function CandidateForm() {
         <Field id="wakalaNumber" label="Wakala no.">
           <Input id="wakalaNumber" value={String(values.wakalaNumber)} onChange={set('wakalaNumber')} />
         </Field>
-        <Field id="enjazNumber" label="Enjaz no.">
+        <Field id="enjazNumber" label="Enjaz no." flagged={unconfirmed.enjazNumber}>
           <Input id="enjazNumber" value={String(values.enjazNumber)} onChange={set('enjazNumber')} />
         </Field>
         <Field id="stickerVisaNumber" label="Sticker visa no.">
@@ -870,6 +930,67 @@ export function CandidateForm() {
           </Field>
         </div>
       </Section>
+
+      <Dialog open={musanedOpen} onOpenChange={setMusanedOpen}>
+        <DialogContent className="w-[min(36rem,calc(100vw-2rem))]">
+          <DialogHeader>
+            <DialogTitle>Paste from Musaned</DialogTitle>
+            <DialogDescription>
+              The six details Musaned provides. Paste them to fill the boxes, or type them. Filled fields are
+              marked for you to confirm; the paste reader is provisional, so check every value.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Textarea
+              rows={4}
+              dir="auto"
+              value={musanedText}
+              onChange={(event) => pasteMusaned(event.target.value)}
+              placeholder="Paste the Musaned details here, or fill the boxes below by hand."
+              aria-label="Musaned text"
+            />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {MUSANED_FIELDS.map(({ field, label }) => (
+                <div key={field} className="space-y-1">
+                  <Label htmlFor={`musaned-${field}`}>{label}</Label>
+                  <Input
+                    id={`musaned-${field}`}
+                    dir="auto"
+                    value={musanedDraft[field] ?? ''}
+                    onChange={(event) => setMusanedDraft((current) => ({ ...current, [field]: event.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {musanedUnmatched.length > 0 && (
+              <div className="text-sm">
+                <p className="font-medium text-[var(--color-warning)]">Not understood ({musanedUnmatched.length})</p>
+                <ul className="mt-1 max-h-24 space-y-0.5 overflow-auto text-muted-foreground">
+                  {musanedUnmatched.map((line, index) => (
+                    <li key={index} dir="auto">{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setMusanedOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!Object.values(musanedDraft).some((value) => value?.trim())}
+              onClick={applyMusaned}
+            >
+              Fill the form
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isEdit && (
         <Card>
