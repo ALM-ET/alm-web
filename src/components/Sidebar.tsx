@@ -4,6 +4,7 @@ import { ChevronRight, LogOut } from 'lucide-react';
 import { NAVIGATION, type NavItem } from '@/app/navigation';
 import { useAuth } from '@/app/auth';
 import { useT } from '@/app/i18n';
+import { BrandLogo } from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 
 /**
@@ -96,22 +97,12 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-3 px-5 py-6">
-        {branding?.logoLightUrl ? (
-          <img src={branding.logoLightUrl} alt="" className="size-10 shrink-0 object-contain" />
-        ) : (
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-lg font-bold text-sidebar-brand">
-            {branding?.shortName?.[0] ?? 'A'}
-          </div>
-        )}
-        <div className="min-w-0">
-          <p className="truncate text-lg font-bold text-sidebar-brand">{branding?.appName ?? 'A-LMIS'}</p>
-          {branding?.tagline && (
-            <p className="truncate text-[0.65rem] uppercase tracking-[0.2em] text-sidebar-foreground/70">
-              {branding.tagline}
-            </p>
-          )}
-        </div>
+      <div className="px-5 py-6">
+        <BrandLogo
+          branding={branding}
+          size="md"
+          themeContext="sidebar"
+        />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">

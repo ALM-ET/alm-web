@@ -9,12 +9,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AgencyBadge } from '@/components/AgencyBadge';
 import { useAuth } from '@/app/auth';
 import { useTheme } from '@/app/theme';
 import { useI18n } from '@/app/i18n';
 import { initials } from '@/lib/utils';
 
-export function Topbar({ onOpenPalette }: { onOpenPalette: () => void }) {
+export function Topbar({
+  onOpenPalette,
+  onOpenSwitcher,
+}: {
+  onOpenPalette: () => void;
+  onOpenSwitcher?: () => void;
+}) {
   const { bootstrap, logout } = useAuth();
   const { isDark, toggle } = useTheme();
   const { t, locale, locales, setLocale } = useI18n();
@@ -35,6 +42,13 @@ export function Topbar({ onOpenPalette }: { onOpenPalette: () => void }) {
       </button>
 
       <div className="ms-auto flex items-center gap-3">
+        <AgencyBadge
+          appName={bootstrap?.branding?.appName}
+          interactive={Boolean(onOpenSwitcher)}
+          onClick={onOpenSwitcher}
+          size="sm"
+        />
+
         {/* Only shown when the agency actually offers a choice. */}
         {locales.length > 1 && (
           <DropdownMenu>

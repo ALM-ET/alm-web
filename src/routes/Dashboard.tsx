@@ -76,20 +76,21 @@ function relative(iso: string): string {
  * the axis labels and the emphasised final point are the parts that carry
  * meaning, and both are cheaper to control by hand.
  */
-function TrendChart({ data }: { data: { label: string; count: number }[] }) {
+function TrendChart({ data }: { data?: { label: string; count: number }[] }) {
+  const points = Array.isArray(data) ? data : [];
   const width = 720;
   const height = 200;
   const padding = { top: 16, right: 16, bottom: 28, left: 32 };
-  const max = Math.max(4, ...data.map((point) => point.count));
+  const max = Math.max(4, ...points.map((point) => point.count));
 
   const x = (index: number) =>
-    padding.left + (index * (width - padding.left - padding.right)) / Math.max(1, data.length - 1);
+    padding.left + (index * (width - padding.left - padding.right)) / Math.max(1, points.length - 1);
   const y = (value: number) =>
     padding.top + (1 - value / max) * (height - padding.top - padding.bottom);
 
-  const line = data.map((point, index) => `${x(index)},${y(point.count)}`).join(' ');
-  const area = `${padding.left},${y(0)} ${line} ${x(data.length - 1)},${y(0)}`;
-  const last = data[data.length - 1];
+  const line = points.map((point, index) => `${x(index)},${y(point.count)}`).join(' ');
+  const area = points.length ? `${padding.left},${y(0)} ${line} ${x(points.length - 1)},${y(0)}` : '';
+  const last = points[points.length - 1];
 
   return (
     <div className="overflow-x-auto">
@@ -120,20 +121,20 @@ function TrendChart({ data }: { data: { label: string; count: number }[] }) {
           </g>
         ))}
 
-        <polygon points={area} fill="var(--color-primary)" opacity="0.12" />
-        <polyline points={line} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" />
+        {area && <polygon points={area} fill="var(--color-primary)" opacity="0.12" />}
+        {line && <polyline points={line} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" />}
 
-        {data.map((point, index) => (
+        {points.map((point, index) => (
           <circle
             key={point.label + index}
             cx={x(index)}
             cy={y(point.count)}
-            r={index === data.length - 1 ? 5 : 3}
+            r={index === points.length - 1 ? 5 : 3}
             fill="var(--color-primary)"
           />
         ))}
 
-        {data.map((point, index) => (
+        {points.map((point, index) => (
           <text
             key={`label-${index}`}
             x={x(index)}
@@ -239,7 +240,7 @@ export function Dashboard() {
 
         <CardContent>
           <div className="grid gap-px overflow-hidden rounded-lg bg-border sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            {data?.funnel.map((tile) => {
+            {data?.funnel?.map((tile) => {
               const Icon = STAGE_ICON[tile.stage] ?? Users;
               return (
                 <Link
@@ -285,8 +286,8 @@ export function Dashboard() {
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t(`dashboard.medical_${window.key}`, window.label)}
                 </span>
-                <span className={`text-2xl font-bold tabular-nums ${data?.medicalExpiry[window.key] ? window.tone : ''}`}>
-                  {data?.medicalExpiry[window.key] ?? 0}
+                <span className={`text-2xl font-bold tabular-nums ${data?.medicalExpiry?.[window.key] ? window.tone : ''}`}>
+                  {data?.medicalExpiry?.[window.key] ?? 0}
                 </span>
               </Link>
             ))}
@@ -303,7 +304,7 @@ export function Dashboard() {
             </p>
           </CardHeader>
           <CardContent>
-            {data ? (
+            {data?.trend && Array.isArray(data.trend) ? (
               <TrendChart data={data.trend} />
             ) : (
               <div className="flex h-52 items-center justify-center">
@@ -346,14 +347,14 @@ export function Dashboard() {
             </CardHeader>
 
             <CardContent>
-              {!data?.activity.length && (
+              {!data?.activity?.length && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
                   {t('dashboard.no_activity', 'Nothing has happened yet today.')}
                 </p>
               )}
 
               <ul className="space-y-3">
-                {data?.activity.map((entry) => (
+                {data?.activity?.map((entry) => (
                   <li key={entry.id} className="flex gap-3">
                     <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
                     <div className="min-w-0">
